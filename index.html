@@ -4,13 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NEA DDCC Map</title>
-    <link rel="stylesheet" href="styles.css?v=windy-leaflet-13" />
+    <link rel="stylesheet" href="styles.css?v=nea-sidebar-2" />
   </head>
   <body class="sidebar-collapsed" data-theme="dark">
     <div id="splashScreen" class="splash-screen" role="status" aria-live="polite">
       <div class="splash-screen__grid" aria-hidden="true"></div>
       <div class="splash-screen__content">
-        <div class="splash-screen__brand"><img src="assets/nea.png" alt="" /><span>NEA</span><i></i> DDCC</div>
         <div class="splash-screen__map-wrap" aria-hidden="true">
           <svg class="splash-screen__map" viewBox="0 0 320 430" role="img" aria-label="Philippines map silhouette">
             <defs>
@@ -41,7 +40,7 @@
             </g>
           </svg>
         </div>
-        <p class="splash-screen__title">NEA DDCC MAP</p>
+        <p class="splash-screen__title"><img src="assets/nea.png" alt="NEA logo" /><span>NEA DDCC MAP</span></p>
         <p class="splash-screen__status"><span></span> Initializing national coverage</p>
       </div>
     </div>
@@ -76,6 +75,15 @@
               <button id="modeOutages" class="mode-button" type="button">Outages</button>
             </div>
             <p id="weatherStatus" class="mode-status">Weather mode reads TCWS signals from local data.</p>
+            <section id="weatherLayerSwitch" class="weather-layer-switch" aria-label="Weather layer" hidden>
+              <span class="panel-kicker">Weather layer</span>
+              <div class="weather-layer-buttons" role="group" aria-label="Weather layer selector">
+                <button type="button" class="weather-layer-button is-active" data-weather-layer="tcws">TCWS</button>
+                <button type="button" class="weather-layer-button" data-weather-layer="flood">Flood</button>
+                <button type="button" class="weather-layer-button" data-weather-layer="temperature">Temp</button>
+                <button type="button" class="weather-layer-button" data-weather-layer="rainfall">Rain</button>
+              </div>
+            </section>
           </section>
 
           <section class="controls" aria-label="Filters">
@@ -99,14 +107,39 @@
             </label>
           </section>
 
-          <section id="signalLegend" class="signal-legend hud-corners" aria-label="Weather signal legend" hidden>
-            <span class="panel-kicker">TCWS Legend</span>
-            <div class="legend-row"><span class="signal-chip signal-0"></span>No signal</div>
-            <div class="legend-row"><span class="signal-chip signal-1"></span>Signal 1</div>
-            <div class="legend-row"><span class="signal-chip signal-2"></span>Signal 2</div>
-            <div class="legend-row"><span class="signal-chip signal-3"></span>Signal 3</div>
-            <div class="legend-row"><span class="signal-chip signal-4"></span>Signal 4</div>
-            <div class="legend-row"><span class="signal-chip signal-5"></span>Signal 5</div>
+          <section id="signalLegend" class="signal-legend hud-corners" aria-label="Weather layer legend" hidden>
+            <span id="weatherLegendTitle" class="panel-kicker">TCWS Legend</span>
+            <div data-weather-legend="tcws">
+              <div class="legend-row"><span class="signal-chip signal-0"></span>No signal</div>
+              <div class="legend-row"><span class="signal-chip signal-1"></span>Signal 1</div>
+              <div class="legend-row"><span class="signal-chip signal-2"></span>Signal 2</div>
+              <div class="legend-row"><span class="signal-chip signal-3"></span>Signal 3</div>
+              <div class="legend-row"><span class="signal-chip signal-4"></span>Signal 4</div>
+              <div class="legend-row"><span class="signal-chip signal-5"></span>Signal 5</div>
+              <small id="tcwsTimestamp" class="weather-legend-meta">Bulletin issued: --</small>
+              <small id="tcwsCadence" class="weather-legend-meta">PAGASA updates every 6 hours</small>
+            </div>
+            <div data-weather-legend="flood" hidden>
+              <div class="legend-row"><span class="weather-chip weather-chip--flood-moderate"></span>Moderate</div>
+              <div class="legend-row"><span class="weather-chip weather-chip--flood-severe"></span>Severe</div>
+              <div class="legend-row"><span class="weather-chip weather-chip--flood-extreme"></span>Extreme</div>
+              <div class="legend-row"><span class="weather-chip weather-chip--clear"></span>No active advisory</div>
+            </div>
+            <div data-weather-legend="rainfall" hidden>
+              <div class="rainfall-gradient-legend">
+                <div class="rainfall-gradient-bar" aria-hidden="true"></div>
+                <div class="rainfall-gradient-labels"><span>Dry</span><span>Heavy</span></div>
+              </div>
+              <small class="weather-legend-meta">Current precipitation · Open-Meteo</small>
+              <div class="rainfall-legend-scale"><span>0 mm</span><span>1</span><span>5</span><span>15+</span></div>
+            </div>
+            <div data-weather-legend="temperature" hidden>
+              <div class="temperature-gradient-legend">
+                <div class="temperature-gradient-bar" aria-hidden="true"></div>
+                <div class="temperature-gradient-labels"><span>Cooler</span><span>Hotter</span></div>
+                <small>Current temperature · Open-Meteo</small>
+              </div>
+            </div>
           </section>
 
         </div>
@@ -199,7 +232,7 @@
     <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
     <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
     <script src="config.js?v=windy-1"></script>
-    <script src="app.js?v=windy-leaflet-13"></script>
+    <script src="app.js?v=nea-sidebar-2"></script>
   </body>
 </html>
 

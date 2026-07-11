@@ -76,9 +76,6 @@ def main():
     for index, feature in enumerate(data["features"]):
         props = feature.get("properties") or {}
         ec = props.get("Phil-MunCity_EC") or "#N/A"
-        if ec == "#N/A":
-            skipped += 1
-            continue
         province = props.get("PROVINCE") or props.get("Phil-MunCity_PROVINCE") or ""
         status = props.get("Phil-MunCity_Status of Operation") or "Blank"
         area_type = props.get("Phil-MunCity_ENGTYPE_2") or props.get("ENGTYPE_3") or ""
@@ -150,9 +147,9 @@ def main():
                 "id": feature_id,
                 "p": province_text(group["ps"]),
                 "ps": provinces,
-                "e": group["e"],
+                "e": "N/A" if group["e"] == "#N/A" else group["e"],
                 "s": status,
-                "t": "EC Coverage",
+                "t": "Unassigned Coverage" if group["e"] == "#N/A" else "EC Coverage",
                 "b": bbox,
                 "g": coords,
                 "n": group["n"],
@@ -162,7 +159,7 @@ def main():
             {
                 "p": province_text(group["ps"]),
                 "ps": provinces,
-                "e": group["e"],
+                "e": "N/A" if group["e"] == "#N/A" else group["e"],
                 "x": label_x,
                 "y": label_y,
                 "n": group["n"],
@@ -190,9 +187,9 @@ def main():
         },
         "filters": {
             "provinces": sorted(province_counts),
-            "ecs": sorted(ec_counts),
+            "ecs": sorted(ec for ec in ec_counts if ec != "#N/A"),
         },
-        "labels": sorted(labels, key=lambda item: item["n"], reverse=True),
+        "labels": sorted((label for label in labels if label["e"] != "N/A"), key=lambda item: item["n"], reverse=True),
         "features": features,
     }
 

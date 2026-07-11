@@ -26,6 +26,11 @@ const state = {
   selectionPulse: 0,
   viewAnimation: 0,
   weatherSelectionPulse: 0,
+  weatherLayer: "tcws",
+  temperatureByFeature: new Map(),
+  temperatureUpdatedAt: "",
+  rainfallByFeature: new Map(),
+  rainfallUpdatedAt: "",
   filters: {
     search: "",
     province: "",
@@ -263,6 +268,8 @@ function clampSignal(value) {
 
 function prepareWeatherSignals() {
   const signals = state.weather?.signals || {};
+  const flood = state.weather?.flood || {};
+  const temperature = state.weather?.temperature || {};
   const normalized = {};
 
   Object.entries(signals).forEach(([province, signal]) => {
@@ -273,12 +280,29 @@ function prepareWeatherSignals() {
     source: state.weather?.source || "No weather source loaded",
     issuedAt:
       state.weather?.issuedAt || "No TCWS bulletin timestamp loaded",
+    tcwsIssuedAt:
+      state.weather?.tcwsIssuedAt || state.weather?.issuedAt || "",
+    tcwsNextAdvisoryAt: state.weather?.tcwsNextAdvisoryAt || "",
+    tcwsUpdateCadence:
+      state.weather?.tcwsUpdateCadence ||
+      "Every 6 hours; hourly updates when needed",
     signals,
     normalized,
+    flood,
+    temperature,
+    floodIssuedAt: state.weather?.floodIssuedAt || "",
+    floodAlerts: state.weather?.floodAlerts || [],
   };
 
   if (els.weatherStatus) {
-    els.weatherStatus.textContent = state.weather.issuedAt;
+    els.weatherStatus.textContent = weatherStatusText();
+  }
+  if (els.tcwsTimestamp) {
+    els.tcwsTimestamp.textContent = "Bulletin issued: " + formatOutageDate(state.weather.tcwsIssuedAt);
+  }
+  if (els.tcwsCadence) {
+    const next = state.weather.tcwsNextAdvisoryAt ? " · Next scheduled: " + formatOutageDate(state.weather.tcwsNextAdvisoryAt) : "";
+    els.tcwsCadence.textContent = state.weather.tcwsUpdateCadence + next;
   }
 }
 
@@ -321,6 +345,9 @@ function initElements() {
     "sidebarToggle",
     "sidebarBrandToggle",
     "signalLegend",
+    "weatherLegendTitle",
+    "tcwsTimestamp",
+    "tcwsCadence",
     "outageLegend",
     "mapCanvas",
     "windy",
@@ -333,6 +360,7 @@ function initElements() {
     "modeWeather",
     "modeOutages",
     "weatherStatus",
+    "weatherLayerSwitch",
     "zoomOutButton",
     "zoomInButton",
     "centerButton",
@@ -732,6 +760,10 @@ function populateControls() {
   });
 }
 
+function isSelectableFeature(feature) {
+  return Boolean(feature) && feature.e !== "N/A" && feature.e !== "#N/A";
+}
+
 function featureMatches(feature) {
   if (
     state.filters.province &&
@@ -839,6 +871,98 @@ function updateVisible() {
   scheduleDraw();
 }
 
+const WEATHER_LAYER_CONFIG = {
+  tcws: {
+    label: "Typhoon signal",
+    legendTitle: "TCWS Legend",
+    overlay: "wind",
+    status: "PAGASA TCWS signal layer",
+  },
+  flood: {
+    label: "General Flood Advisory",
+    legendTitle: "Flood Legend",
+    overlay: "rain",
+    status: "PAGASA General Flood Advisory layer",
+  },
+  rainfall: {
+    label: "Rainfall",
+    legendTitle: "Rainfall Legend",
+    overlay: "rain",
+    status: "Open-Meteo precipitation layer",
+  },
+  temperature: {
+    label: "Temperature",
+    legendTitle: "Temperature Legend",
+    overlay: "temp",
+    status: "Windy temperature overlay; PAGASA regional forecasts are the reference",
+  },
+};
+
+function updateWeatherLayerControls() {
+  document.querySelectorAll("[data-weather-layer]").forEach((button) => {
+    const active = button.dataset.weatherLayer === state.weatherLayer;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  const config = WEATHER_LAYER_CONFIG[state.weatherLayer];
+  if (els.weatherLegendTitle) {
+    els.weatherLegendTitle.textContent = config.legendTitle;
+  }
+  document.querySelectorAll("[data-weather-legend]").forEach((legend) => {
+    const active = legend.dataset.weatherLegend === state.weatherLayer;
+    legend.hidden = !active;
+    legend.style.display = active ? "contents" : "none";
+  });
+}
+
+function weatherUpdatedText(feature = null) {
+  if (state.weatherLayer === "temperature") {
+    const selectedTime = feature && state.temperatureByFeature.get(feature.id)?.time;
+    return selectedTime || state.temperatureUpdatedAt || "Open-Meteo time unavailable";
+  }
+
+  if (state.weatherLayer === "flood") {
+    return state.weather?.floodIssuedAt
+      ? formatOutageDate(state.weather.floodIssuedAt)
+      : "PAGASA GFA time unavailable";
+  }
+
+  if (state.weatherLayer === "rainfall") {
+    const selectedTime = feature && state.rainfallByFeature.get(feature.id)?.time;
+    return selectedTime || state.rainfallUpdatedAt || "Open-Meteo time unavailable";
+  }
+
+  return state.weather?.tcwsIssuedAt || state.weather?.issuedAt || "TCWS timestamp unavailable";
+}
+function weatherStatusText() {
+  const config = WEATHER_LAYER_CONFIG[state.weatherLayer];
+  const cadence = state.weatherLayer === "tcws" ? " · " + (state.weather?.tcwsUpdateCadence || "PAGASA updates every 6 hours") : "";
+  return config.status + " · Updated " + weatherUpdatedText() + cadence;
+}
+
+function setWeatherLayer(layer) {
+  if (!WEATHER_LAYER_CONFIG[layer]) {
+    return;
+  }
+
+  state.weatherLayer = layer;
+  updateWeatherLayerControls();
+
+  const config = WEATHER_LAYER_CONFIG[layer];
+
+  if (els.weatherStatus) {
+    els.weatherStatus.textContent = weatherStatusText();
+  }
+
+  if (state.windy.initialized) {
+    refreshWindyCoverage();
+  }
+
+  if (layer === "temperature" || layer === "rainfall") {
+    loadTemperatureCoverage();
+}
+}
 function setMode(mode) {
   const modeChanged = state.mode !== mode;
   state.mode = mode;
@@ -853,6 +977,12 @@ function setMode(mode) {
   if (els.windy) {
     els.windy.hidden = mode !== "weather";
   }
+
+  if (els.weatherLayerSwitch) {
+    els.weatherLayerSwitch.hidden = mode !== "weather";
+  }
+
+  updateWeatherLayerControls();
 
   if (els.signalLegend) {
     els.signalLegend.hidden = mode !== "weather";
@@ -875,7 +1005,7 @@ function setMode(mode) {
       ? "Outage feed unavailable - showing no recent reports."
       : `${formatNumber(state.outages.records.length)} reports loaded · latest report per EC shown.`;
   } else if (els.weatherStatus && mode === "weather") {
-    els.weatherStatus.textContent = state.weather?.issuedAt || "Weather mode reads TCWS signals from local data.";
+    els.weatherStatus.textContent = WEATHER_LAYER_CONFIG[state.weatherLayer].status + " · Updated " + weatherUpdatedText();
   }
 
   if (mode === "weather") {
@@ -1395,19 +1525,21 @@ function drawPolygons(ctx) {
     const dimmed = filtering && !featureMatches(feature);
 
     if (state.mode === "weather") {
-      const signal = signalForFeature(feature);
-      const color = signalPalette[signal] || signalPalette[0];
+      const unassigned = !isSelectableFeature(feature);
+      const color = unassigned
+        ? { fill: "#59636a", stroke: "#9aa5aa" }
+        : weatherPaletteForFeature(feature);
 
       drawPolygon(
         ctx,
         feature,
         dimmed
           ? "rgba(68, 77, 85, 0.40)"
-          : withAlpha(color.fill, signal === 0 ? 0.42 : 0.82),
+          : withAlpha(color.fill, unassigned ? 0.42 : 0.82),
         dimmed
           ? "rgba(140, 151, 160, 0.34)"
           : color.stroke,
-        dimmed ? 0.9 : signal === 0 ? 1 : 1.35
+        dimmed ? 0.9 : unassigned ? 1 : 1.35
       );
 
       return;
@@ -1444,7 +1576,9 @@ function drawPolygons(ctx) {
       return;
     }
 
-    const color = colorForEc(feature.e);
+    const color = isSelectableFeature(feature)
+      ? colorForEc(feature.e)
+      : "#69757b";
     const lightMode = isLightTheme();
     const selected = feature.id === selectedId;
     const focusDimmed = focusActive && !selected;
@@ -1891,6 +2025,10 @@ function findFeatureAt(
     const feature =
       state.visibleFeatures[i];
 
+    if (!isSelectableFeature(feature)) {
+      continue;
+    }
+
     if (
       pointInFeature(
         point,
@@ -2166,11 +2304,25 @@ function setDetails(
   const outageReport = outageForFeature(feature);
   const outage = outageReport?.latest;
   const outageDetailStyle = outageStyleFor(outage);
+  const temperature = state.temperatureByFeature.get(feature.id);
+  const rainfall = state.rainfallByFeature.get(feature.id);
   const status = isOutages
     ? outage?.status || "No recent report"
-    : feature.s && feature.s !== "Blank"
-      ? feature.s
-      : "Coverage available";
+    : isWeather
+      ? state.weatherLayer === "temperature"
+        ? "Current conditions"
+        : state.weatherLayer === "rainfall"
+          ? "Current precipitation"
+          : state.weatherLayer === "flood"
+          ? weatherMetricForFeature(feature) > 0
+            ? "Flood advisory area"
+            : "No active flood advisory"
+          : signal > 0
+            ? "Active TCWS signal"
+            : "No active TCWS signal"
+      : feature.s && feature.s !== "Blank"
+        ? feature.s
+        : "Coverage available";
   const accent =
     isWeather
       ? (signalPalette[signal] || signalPalette[0]).fill
@@ -2236,9 +2388,13 @@ function setDetails(
 
   els.detailStatusTag.textContent =
     isWeather
-      ? signal > 0
-        ? "ALERT"
-        : "CLEAR"
+      ? state.weatherLayer === "temperature"
+        ? "LIVE"
+        : state.weatherLayer === "rainfall"
+          ? "LIVE"
+          : state.weatherLayer === "flood"
+          ? weatherMetricForFeature(feature) > 0 ? "ALERT" : "CLEAR"
+          : signal > 0 ? "ALERT" : "CLEAR"
       : isOutages
         ? outage
           ? outageStatusKey(outage).toUpperCase()
@@ -2246,23 +2402,45 @@ function setDetails(
         : "ONLINE";
   els.detailStatusTag.classList.toggle(
     "is-alert",
-    (isWeather && signal > 0) ||
+    (isWeather && (state.weatherLayer === "temperature" || state.weatherLayer === "rainfall" || signal > 0 || weatherMetricForFeature(feature) > 0)) ||
       (isOutages && outageStatusKey(outage) === "ongoing")
   );
 
   els.detailSignalLabel.textContent = isOutages
     ? "Latest status"
-    : "TCWS signal";
+    : isWeather && state.weatherLayer === "temperature"
+      ? "Current temperature"
+      : isWeather && state.weatherLayer === "rainfall"
+        ? "Current rainfall"
+      : isWeather && state.weatherLayer === "flood"
+        ? "Flood advisory"
+        : "TCWS signal";
   els.detailSignal.textContent =
     isOutages
       ? outageDetailStyle.label
-      : signalLabel(signal);
+      : isWeather && state.weatherLayer === "temperature"
+        ? temperature?.temperature === undefined || Number.isNaN(temperature?.temperature)
+          ? "Loading..."
+          : `${temperature.temperature.toFixed(1)} °C`
+        : isWeather && state.weatherLayer === "rainfall"
+          ? rainfall?.precipitation === undefined || Number.isNaN(rainfall?.precipitation) ? "Loading..." : rainfall.precipitation.toFixed(1) + " mm"
+        : isWeather && state.weatherLayer === "flood"
+          ? weatherMetricForFeature(feature) > 0 ? "Advisory" : "No advisory"
+          : signalLabel(signal);
 
   els.detailSignalHint.textContent =
-    isWeather
-      ? signal > 0
-        ? "Active TCWS signal"
-        : "No active TCWS signal"
+    isWeather && state.weatherLayer === "temperature"
+      ? temperature?.humidity !== undefined && !Number.isNaN(temperature.humidity)
+        ? `Open-Meteo current conditions · ${temperature.humidity}% humidity`
+        : "Open-Meteo current conditions"
+      : isWeather && state.weatherLayer === "rainfall"
+        ? "Open-Meteo current precipitation"
+      : isWeather && state.weatherLayer === "flood"
+        ? "PAGASA General Flood Advisory status"
+        : isWeather
+          ? signal > 0
+            ? "Active TCWS signal"
+            : "No active TCWS signal"
       : isOutages
         ? outage
           ? `${outageReport.count} report(s) · ${formatOutageDate(outage.RECORD_TIMESTAMP)}`
@@ -2278,7 +2456,7 @@ function setDetails(
 
   els.detailUpdated.textContent =
     isWeather
-      ? state.weather?.issuedAt || "TCWS timestamp unavailable"
+      ? weatherUpdatedText(feature)
       : isOutages
         ? outage
           ? `Report ${formatOutageDate(outage.RECORD_TIMESTAMP)}`
@@ -2316,10 +2494,18 @@ function setDetails(
     signalLabel(signal);
 
   els.detailSignalHint.textContent =
-    isWeather
-      ? signal > 0
-        ? "Active TCWS signal"
-        : "No active TCWS signal"
+    isWeather && state.weatherLayer === "temperature"
+      ? temperature?.humidity !== undefined && !Number.isNaN(temperature.humidity)
+        ? `Open-Meteo current conditions · ${temperature.humidity}% humidity`
+        : "Open-Meteo current conditions"
+      : isWeather && state.weatherLayer === "rainfall"
+        ? "Open-Meteo current precipitation"
+      : isWeather && state.weatherLayer === "flood"
+        ? "PAGASA General Flood Advisory status"
+        : isWeather
+          ? signal > 0
+            ? "Active TCWS signal"
+            : "No active TCWS signal"
       : "TCWS data available in Weather mode";
 
   els.detailSource.textContent =
@@ -2329,7 +2515,7 @@ function setDetails(
 
   els.detailUpdated.textContent =
     isWeather
-      ? state.weather?.issuedAt || "TCWS timestamp unavailable"
+      ? weatherUpdatedText(feature)
       : "Local boundary data";
 
 
@@ -2338,6 +2524,105 @@ function setDetails(
   */
 }
 
+function weatherMetricForFeature(feature) {
+  if (state.weatherLayer === "temperature") {
+    const temperature = state.temperatureByFeature.get(feature.id)?.temperature;
+    return Number.isFinite(temperature) ? temperature : null;
+  }
+
+  if (state.weatherLayer === "rainfall") {
+    const precipitation = state.rainfallByFeature.get(feature.id)?.precipitation;
+    return Number.isFinite(precipitation) ? precipitation : null;
+  }
+
+  const provinces = feature.ps || [feature.p];
+  const source = state.weather?.[state.weatherLayer] || {};
+  const values = provinces
+    .map((province) => source[normalizeProvince(province)] ?? source[province])
+    .filter((value) => value !== undefined && value !== null && value !== "");
+
+  if (!values.length) {
+    return null;
+  }
+
+  if (state.weatherLayer === "flood") {
+    const levels = values.map((value) => {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+      return /active|advisory|flood|watch/i.test(String(value)) ? 1 : 0;
+    });
+    return Math.max(...levels);
+  }
+
+  const numeric = values.map(Number).filter(Number.isFinite);
+  return numeric.length ? Math.max(...numeric) : null;
+}
+
+function weatherPaletteForFeature(feature) {
+  if (state.weatherLayer === "tcws") {
+    const signal = signalForFeature(feature);
+    return signalPalette[signal] || signalPalette[0];
+  }
+
+  const metric = weatherMetricForFeature(feature);
+
+  if (state.weatherLayer === "rainfall") {
+    if (metric === null) {
+      return { fill: "#59636a", stroke: "#9aa5aa" };
+    }
+
+    if (metric <= 0) {
+      return { fill: "#334155", stroke: "#94a3b8" };
+    }
+
+    if (metric <= 1) {
+      return { fill: "#7dd3fc", stroke: "#e0f2fe" };
+    }
+
+    if (metric <= 5) {
+      return { fill: "#38bdf8", stroke: "#bae6fd" };
+    }
+
+    if (metric <= 15) {
+      return { fill: "#2563eb", stroke: "#93c5fd" };
+    }
+
+    return { fill: "#7c3aed", stroke: "#c4b5fd" };
+  }
+  if (state.weatherLayer === "flood") {
+    if (metric >= 3) {
+      return { fill: "#ef4444", stroke: "#fecaca" };
+    }
+
+    if (metric === 2) {
+      return { fill: "#f97316", stroke: "#fed7aa" };
+    }
+
+    return metric === 1
+      ? { fill: "#facc15", stroke: "#fef08a" }
+      : { fill: "#59636a", stroke: "#9aa5aa" };
+  }
+
+  if (metric === null) {
+    return { fill: "#59636a", stroke: "#9aa5aa" };
+  }
+
+  if (metric <= 24) {
+    return { fill: "#60a5fa", stroke: "#bfdbfe" };
+  }
+
+  if (metric <= 29) {
+    return { fill: "#2dd4bf", stroke: "#99f6e4" };
+  }
+
+  if (metric <= 33) {
+    return { fill: "#fb923c", stroke: "#fed7aa" };
+  }
+
+  return { fill: "#fb7185", stroke: "#fecdd3" };
+}
 function weatherFeatureStyle(feature) {
   const selected = state.selected?.id === feature.id;
   const focusActive =
@@ -2349,9 +2634,7 @@ function weatherFeatureStyle(feature) {
     hasActiveFilters() &&
     !featureMatches(feature);
   const signal = signalForFeature(feature);
-  const signalStyle =
-    signalPalette[signal] ||
-    signalPalette[0];
+  const signalStyle = weatherPaletteForFeature(feature);
 
   return {
     color: selected
@@ -2373,7 +2656,7 @@ function weatherFeatureStyle(feature) {
         ? 0.56
         : dimmed
           ? 0.24
-        : signal === 0
+        : state.weatherLayer === "tcws" && signal === 0
           ? 0.35
           : 0.6,
   };
@@ -2561,8 +2844,108 @@ function refreshWindyCoverage() {
   addWindyLabels();
 }
 
+async function loadTemperatureCoverage() {
+  const features = state.data?.features?.filter(isSelectableFeature) || [];
+  if (!features.length) {
+    return;
+  }
+
+  const latitudes = features.map((feature) => ((feature.b[1] + feature.b[3]) / 2).toFixed(5)).join(",");
+  const longitudes = features.map((feature) => ((feature.b[0] + feature.b[2]) / 2).toFixed(5)).join(",");
+  const url =
+    "https://api.open-meteo.com/v1/forecast" +
+    `?latitude=${latitudes}&longitude=${longitudes}` +
+    "&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation" +
+    "&temperature_unit=celsius&timezone=auto";
+
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Open-Meteo coverage request failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const results = Array.isArray(payload) ? payload : [payload];
+    results.forEach((item, index) => {
+      const current = item.current || {};
+      state.temperatureByFeature.set(features[index].id, {
+        temperature: Number(current.temperature_2m),
+        apparent: Number(current.apparent_temperature),
+        humidity: Number(current.relative_humidity_2m),
+        precipitation: Number(current.precipitation),
+        time: current.time || "",
+      });
+      state.rainfallByFeature.set(features[index].id, {
+        precipitation: Number(current.precipitation),
+        time: current.time || "",
+      });
+    });
+
+    state.temperatureUpdatedAt = results.find((item) => item.current?.time)?.current?.time || "";
+    state.rainfallUpdatedAt = state.temperatureUpdatedAt;
+    refreshWindyCoverage();
+    scheduleDraw();
+    if (state.selected) {
+      setDetails(state.selected);
+    }
+  } catch (error) {
+    console.warn("Could not load EC temperature coverage", error);
+  }
+}
+async function loadFeatureTemperature(feature) {
+  if ((state.weatherLayer !== "temperature" && state.weatherLayer !== "rainfall") || !feature) {
+    return;
+  }
+
+  const cached = state.weatherLayer === "rainfall" ? state.rainfallByFeature.get(feature.id) : state.temperatureByFeature.get(feature.id);
+  if (cached !== undefined) {
+    if (state.selected?.id === feature.id) {
+      setDetails(feature);
+    }
+    return;
+  }
+
+  const [minLon, minLat, maxLon, maxLat] = feature.b;
+  const latitude = ((minLat + maxLat) / 2).toFixed(5);
+  const longitude = ((minLon + maxLon) / 2).toFixed(5);
+  const url =
+    "https://api.open-meteo.com/v1/forecast" +
+    `?latitude=${latitude}&longitude=${longitude}` +
+    "&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation" +
+    "&temperature_unit=celsius&timezone=auto";
+
+  if (state.weatherLayer === "rainfall") { state.rainfallByFeature.set(feature.id, null); } else { state.temperatureByFeature.set(feature.id, null); }
+  if (state.selected?.id === feature.id) {
+    setDetails(feature);
+  }
+
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Open-Meteo request failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const current = payload.current || {};
+    state.temperatureByFeature.set(feature.id, {
+      temperature: Number(current.temperature_2m),
+      apparent: Number(current.apparent_temperature),
+      humidity: Number(current.relative_humidity_2m),
+      time: current.time || "",
+    });
+    state.rainfallByFeature.set(feature.id, { precipitation: Number(current.precipitation), time: current.time || "" });
+  } catch (error) {
+    state.temperatureByFeature.delete(feature.id);
+    state.rainfallByFeature.delete(feature.id);
+    console.warn("Could not load selected EC temperature", error);
+  }
+
+  if (state.selected?.id === feature.id) {
+    setDetails(feature);
+  }
+}
 function selectWeatherFeature(feature) {
-  if (!feature || !state.windy.map) {
+  if (!isSelectableFeature(feature) || !state.windy.map) {
     return;
   }
 
@@ -2576,6 +2959,7 @@ function selectWeatherFeature(feature) {
   els.tooltip.hidden = true;
   setDetails(feature);
   refreshWindyCoverage();
+  loadFeatureTemperature(feature);
 
   const bbox = feature.b;
   state.windy.map.flyToBounds(
@@ -2663,7 +3047,7 @@ function initWindyMap() {
       state.windy.initialized = true;
       state.windy.initializing = false;
 
-      windyAPI.store.set("overlay", "wind");
+      windyAPI.store.set("overlay", WEATHER_LAYER_CONFIG[state.weatherLayer].overlay);
 
       state.data.features.forEach((feature) => {
         const layer = L.geoJSON(
@@ -2676,11 +3060,16 @@ function initWindyMap() {
             },
           },
           {
+            interactive: isSelectableFeature(feature),
             style: () => weatherFeatureStyle(feature),
           }
         );
 
         layer.eachLayer((path) => {
+          if (!isSelectableFeature(feature)) {
+            return;
+          }
+
           path.on("click", (event) => {
             L.DomEvent.stopPropagation(event.originalEvent);
             selectWeatherFeature(feature);
@@ -2876,6 +3265,10 @@ function selectCanvasFeature(feature) {
     return;
   }
 
+  if (!isSelectableFeature(feature)) {
+    return;
+  }
+
   if (state.selected?.id === feature.id) {
     resetMapSelection();
     return;
@@ -3027,6 +3420,10 @@ function bindEvents() {
     "click",
     () => setMode("outages")
   );
+
+  document.querySelectorAll("[data-weather-layer]").forEach((button) => {
+    button.addEventListener("click", () => setWeatherLayer(button.dataset.weatherLayer));
+  });
 
   els.sidebarToggle?.addEventListener(
     "click",
