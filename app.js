@@ -2,6 +2,13 @@ const state = {
   data: null,
   weather: null,
   mode: "ec",
+  labelsVisible: true,
+  outages: {
+    records: [],
+    byEc: new Map(),
+    loadedAt: null,
+    error: null,
+  },
   canvas: null,
   ctx: null,
   dpr: 1,
@@ -16,6 +23,8 @@ const state = {
   hovered: null,
   selected: null,
   selectionLift: 0,
+  selectionPulse: 0,
+  viewAnimation: 0,
   weatherSelectionPulse: 0,
   filters: {
     search: "",
@@ -38,6 +47,34 @@ const state = {
 };
 
 const els = {};
+const THEME_STORAGE_KEY = "ec-coverage-theme";
+const LABELS_STORAGE_KEY = "ec-coverage-labels-visible";
+const PET_VISIBILITY_STORAGE_KEY = "ec-coverage-mascot-visible";
+const PET_ASSETS = {
+  ec: "assets/pet/watt-pixel-ec.png",
+  outages: "assets/pet/watt-pixel-outage.png",
+  weather: "assets/pet/watt-pixel-weather.png",
+  retreat: "assets/pet/watt-pixel-retreat.png",
+};
+const PET_GUIDES = {
+  ec: {
+    title: "What is EC mode?",
+    text: "Explore electric cooperative coverage, select an EC, and inspect its latest status and service area.",
+  },
+  weather: {
+    title: "What is Weather mode?",
+    text: "See weather-related signals and TCWS coverage so you can understand conditions affecting each area.",
+  },
+  outages: {
+    title: "What is Outage mode?",
+    text: "Track the latest interruption report per EC. Colors show ongoing, restored, or no recent report.",
+  },
+};
+let petHideTimer = null;
+let petUserHidden = false;
+let petModeHidden = false;
+let splashStartedAt = performance.now();
+let splashHideTimer = null;
 
 const palette = [
   "#22c55e",
@@ -87,6 +124,24 @@ const signalPalette = {
   },
 };
 
+const outagePalette = {
+  ongoing: {
+    fill: "#ef4444",
+    stroke: "#fecaca",
+    label: "Ongoing",
+  },
+  restored: {
+    fill: "#22c55e",
+    stroke: "#bbf7d0",
+    label: "Restored",
+  },
+  none: {
+    fill: "#64748b",
+    stroke: "#cbd5e1",
+    label: "No recent report",
+  },
+};
+
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value);
 }
@@ -104,6 +159,86 @@ function hashString(value) {
 
 function colorForEc(ec) {
   return palette[hashString(ec) % palette.length];
+}
+
+function isLightTheme() {
+  return document.body.dataset.theme === "light";
+}
+
+function setTheme(theme, persist = true) {
+  const nextTheme = theme === "light" ? "light" : "dark";
+  document.body.dataset.theme = nextTheme;
+
+  if (persist) {
+    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  }
+
+  if (els.themeToggle) {
+    const lightMode = nextTheme === "light";
+    const label = lightMode ? "Use dark mode" : "Use light mode";
+    els.themeToggle.setAttribute("aria-label", label);
+    els.themeToggle.setAttribute("title", label);
+    els.themeToggle.setAttribute("aria-pressed", String(lightMode));
+  }
+
+  scheduleDraw();
+}
+
+function initializeTheme() {
+  let savedTheme = "dark";
+
+  try {
+    savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY) || "dark";
+  } catch (error) {
+    savedTheme = "dark";
+  }
+
+  setTheme(savedTheme, false);
+}
+
+function setLabelsVisible(visible, persist = true) {
+  state.labelsVisible = Boolean(visible);
+
+  if (persist) {
+    window.localStorage.setItem(
+      LABELS_STORAGE_KEY,
+      String(state.labelsVisible)
+    );
+  }
+
+  if (els.labelsToggle) {
+    const label = state.labelsVisible
+      ? "Hide map labels"
+      : "Show map labels";
+    els.labelsToggle.classList.toggle(
+      "is-off",
+      !state.labelsVisible
+    );
+    els.labelsToggle.setAttribute("aria-label", label);
+    els.labelsToggle.setAttribute("title", label);
+    els.labelsToggle.setAttribute(
+      "aria-pressed",
+      String(state.labelsVisible)
+    );
+  }
+
+  if (state.windy.initialized) {
+    addWindyLabels();
+  }
+
+  scheduleDraw();
+}
+
+function initializeLabels() {
+  let savedValue = "true";
+
+  try {
+    savedValue = window.localStorage.getItem(LABELS_STORAGE_KEY) || "true";
+  } catch (error) {
+    savedValue = "true";
+  }
+
+  setLabelsVisible(savedValue !== "false", false);
 }
 
 function normalizeProvince(value) {
@@ -181,6 +316,12 @@ function withAlpha(hex, alpha) {
 
 function initElements() {
   [
+    "splashScreen",
+    "sidebar",
+    "sidebarToggle",
+    "sidebarBrandToggle",
+    "signalLegend",
+    "outageLegend",
     "mapCanvas",
     "windy",
     "tooltip",
@@ -190,15 +331,37 @@ function initElements() {
     "ecSelect",
     "modeEc",
     "modeWeather",
+    "modeOutages",
     "weatherStatus",
-    "fitButton",
-    "clearButton",
+    "zoomOutButton",
+    "zoomInButton",
+    "centerButton",
+    "labelsToggle",
+    "themeToggle",
     "detailPanel",
+    "petOverlay",
+    "detailPet",
+    "petBubble",
+    "petBubbleTitle",
+    "petBubbleText",
+    "petBubbleClose",
+    "petBubbleHide",
+    "petRestoreButton",
     "detailClose",
+    "detailMode",
     "detailProvince",
+    "detailProvinceCount",
     "detailEc",
     "detailStatus",
+    "detailStatusTag",
     "detailSignal",
+    "detailSignalLabel",
+    "detailSignalHint",
+    "detailProvinceCountLabel",
+    "detailProvinceCountHint",
+    "detailProvinceLabel",
+    "detailSource",
+    "detailUpdated",
     "coordLon",
     "coordLat",
     "zoomReadout",
@@ -210,12 +373,88 @@ function initElements() {
   state.ctx = state.canvas.getContext("2d");
 }
 
+function renderSplashCoverageMap() {
+  const group = document.getElementById("splashCoverageShapes");
+  if (!group || !state.data?.features?.length || !state.bounds) {
+    return;
+  }
+
+  const [minLon, minLat, maxLon, maxLat] = state.bounds;
+  const width = 220;
+  const height = 350;
+  const left = 50;
+  const top = 24;
+  const lonSpan = maxLon - minLon || 1;
+  const latSpan = maxLat - minLat || 1;
+  const projectSplashPoint = ([lon, lat]) => [
+    left + ((lon - minLon) / lonSpan) * width,
+    top + ((maxLat - lat) / latSpan) * height,
+  ];
+
+  const pathData = (feature) =>
+    (feature.g || [])
+      .map((polygon) =>
+        polygon
+          .map((ring) => {
+            const commands = ring.map((point, index) => {
+              const [x, y] = projectSplashPoint(point);
+              return `${index ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`;
+            });
+            return commands.length ? `${commands.join(" ")} Z` : "";
+          })
+          .join(" ")
+      )
+      .join(" ");
+
+  const svgNamespace = "http://www.w3.org/2000/svg";
+  const paths = state.data.features
+    .map((feature) => {
+      const d = pathData(feature);
+      if (!d) {
+        return null;
+      }
+      const path = document.createElementNS(svgNamespace, "path");
+      path.setAttribute("d", d);
+      path.classList.add("splash-generated-path");
+      path.setAttribute("vector-effect", "non-scaling-stroke");
+      path.setAttribute("stroke", "rgba(210, 255, 239, 0.62)");
+      path.setAttribute("stroke-width", "0.22");
+      return path;
+    })
+    .filter(Boolean);
+
+  group.replaceChildren(...paths);
+  const signals = document.getElementById("splashSignals");
+  if (signals) {
+    signals.hidden = true;
+  }
+}
+
+function hideSplashScreen() {
+  if (!els.splashScreen || els.splashScreen.hidden) {
+    return;
+  }
+
+  const minimumDuration = 1100;
+  const elapsed = performance.now() - splashStartedAt;
+  const wait = Math.max(0, minimumDuration - elapsed);
+
+  window.clearTimeout(splashHideTimer);
+  splashHideTimer = window.setTimeout(() => {
+    els.splashScreen.classList.add("is-leaving");
+    window.setTimeout(() => {
+      els.splashScreen.hidden = true;
+    }, 560);
+  }, wait);
+}
+
 function resizeCanvas() {
   const rect = state.canvas.getBoundingClientRect();
+  const panelRect = state.canvas.parentElement?.getBoundingClientRect();
 
   state.dpr = window.devicePixelRatio || 1;
-  state.width = Math.max(1, rect.width);
-  state.height = Math.max(1, rect.height);
+  state.width = Math.max(1, rect.width || panelRect?.width || 1);
+  state.height = Math.max(1, rect.height || panelRect?.height || 1);
 
   state.canvas.width = Math.round(
     state.width * state.dpr
@@ -242,7 +481,102 @@ function resizeCanvas() {
     state.windy.map.invalidateSize();
   }
 
+  if (state.selected) {
+    positionPetOverlay();
+  }
+
   scheduleDraw();
+}
+
+function normalizeOutageEc(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\bA\s*(\d+)\b/g, "AREA $1")
+    .replace(/\bAREA\s*(\d+)\b/g, "AREA $1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function outageForFeature(feature) {
+  return state.outages.byEc.get(normalizeOutageEc(feature?.e)) || null;
+}
+
+function latestOutageForFeature(feature) {
+  return outageForFeature(feature)?.latest || null;
+}
+
+function outageStatusKey(record) {
+  const status = String(record?.status || "")
+    .trim()
+    .toLowerCase();
+
+  if (status.includes("ongoing") || status.includes("active")) {
+    return "ongoing";
+  }
+
+  if (status.includes("restored") || status.includes("restore")) {
+    return "restored";
+  }
+
+  return "none";
+}
+
+function outageStyleFor(record) {
+  return outagePalette[outageStatusKey(record)] || outagePalette.none;
+}
+
+function formatOutageDate(value) {
+  if (!value) {
+    return "Time unavailable";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function prepareOutages(records) {
+  const byEc = new Map();
+
+  (Array.isArray(records) ? records : []).forEach((record) => {
+    const key = normalizeOutageEc(record?.EC_CODE);
+
+    if (!key) {
+      return;
+    }
+
+    const existing = byEc.get(key) || {
+      latest: null,
+      count: 0,
+      records: [],
+    };
+
+    existing.count += 1;
+    existing.records.push(record);
+
+    const currentTime = new Date(record?.RECORD_TIMESTAMP || 0).getTime();
+    const existingTime = new Date(existing.latest?.RECORD_TIMESTAMP || 0).getTime();
+
+    if (!existing.latest || currentTime >= existingTime) {
+      existing.latest = record;
+    }
+
+    byEc.set(key, existing);
+  });
+
+  state.outages.records = Array.isArray(records) ? records : [];
+  state.outages.byEc = byEc;
+  state.outages.loadedAt = new Date();
+  state.outages.error = null;
 }
 
 function worldSize() {
@@ -296,39 +630,78 @@ function fitToBounds(animate = true) {
     return;
   }
 
-  const size = worldSize();
+  const target = getFitToBoundsView();
 
-  const padding =
-    state.width < 700 ? 28 : 58;
-
-  const sx =
-    (state.width - padding * 2) /
-    size.lon;
-
-  const sy =
-    (state.height - padding * 2) /
-    size.lat;
-
-  state.scale = Math.max(
-    1,
-    Math.min(sx, sy)
-  );
-
-  state.offsetX =
-    (state.width -
-      size.lon * state.scale) /
-    2;
-
-  state.offsetY =
-    (state.height -
-      size.lat * state.scale) /
-    2;
+  state.scale = target.scale;
+  state.offsetX = target.offsetX;
+  state.offsetY = target.offsetY;
 
   updateZoomReadout();
 
   if (animate) {
     scheduleDraw();
   }
+}
+
+function getFitToBoundsView() {
+  const size = worldSize();
+  const padding = state.width < 700 ? 28 : 58;
+  const sx = (state.width - padding * 2) / size.lon;
+  const sy = (state.height - padding * 2) / size.lat;
+  const scale = Math.max(1, Math.min(sx, sy));
+
+  return {
+    scale,
+    offsetX: (state.width - size.lon * scale) / 2,
+    offsetY: (state.height - size.lat * scale) / 2,
+  };
+}
+
+function animateCanvasToBounds() {
+  if (!state.bounds) {
+    return;
+  }
+
+  const start = {
+    scale: state.scale,
+    offsetX: state.offsetX,
+    offsetY: state.offsetY,
+  };
+  const target = getFitToBoundsView();
+  const startedAt = performance.now();
+  const duration = 520;
+  const animationId = ++state.viewAnimation;
+
+  function frame(now) {
+    if (animationId !== state.viewAnimation) {
+      return;
+    }
+
+    const progress = Math.min(
+      1,
+      (now - startedAt) / duration
+    );
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    state.scale =
+      start.scale +
+      (target.scale - start.scale) * eased;
+    state.offsetX =
+      start.offsetX +
+      (target.offsetX - start.offsetX) * eased;
+    state.offsetY =
+      start.offsetY +
+      (target.offsetY - start.offsetY) * eased;
+
+    updateZoomReadout();
+    scheduleDraw();
+
+    if (progress < 1) {
+      requestAnimationFrame(frame);
+    }
+  }
+
+  requestAnimationFrame(frame);
 }
 
 function populateControls() {
@@ -451,6 +824,8 @@ function updateVisible() {
   const modeText =
     state.mode === "weather"
       ? "weather signal mode"
+      : state.mode === "outages"
+        ? "outage status mode"
       : "EC mode";
 
   els.visibleCount.textContent = hasActiveFilters()
@@ -465,16 +840,42 @@ function updateVisible() {
 }
 
 function setMode(mode) {
+  const modeChanged = state.mode !== mode;
   state.mode = mode;
+  document.body.dataset.mode = mode;
+
+  if (modeChanged) {
+    petModeHidden = true;
+    hidePet();
+    resetMapSelection();
+  }
+
+  if (els.windy) {
+    els.windy.hidden = mode !== "weather";
+  }
+
+  if (els.signalLegend) {
+    els.signalLegend.hidden = mode !== "weather";
+  }
+
+  if (els.outageLegend) {
+    els.outageLegend.hidden = mode !== "outages";
+  }
+
+  if (modeChanged) {
+    setSidebarCollapsed(true);
+  }
 
   if (mode !== "weather" && state.windTimer) {
     window.clearTimeout(state.windTimer);
     state.windTimer = null;
   }
-  document.body.dataset.mode = mode;
-
-  if (els.windy) {
-    els.windy.hidden = mode !== "weather";
+  if (els.weatherStatus && mode === "outages") {
+    els.weatherStatus.textContent = state.outages.error
+      ? "Outage feed unavailable - showing no recent reports."
+      : `${formatNumber(state.outages.records.length)} reports loaded · latest report per EC shown.`;
+  } else if (els.weatherStatus && mode === "weather") {
+    els.weatherStatus.textContent = state.weather?.issuedAt || "Weather mode reads TCWS signals from local data.";
   }
 
   if (mode === "weather") {
@@ -491,11 +892,61 @@ function setMode(mode) {
     mode === "weather"
   );
 
+  els.modeOutages?.classList.toggle(
+    "is-active",
+    mode === "outages"
+  );
+
   if (state.selected) {
     setDetails(state.selected);
+  } else if (!modeChanged) {
+    showPet();
   }
 
   updateVisible();
+
+}
+
+function setSidebarCollapsed(collapsed) {
+  if (!els.sidebar || !els.sidebarToggle) {
+    return;
+  }
+
+  els.sidebar.classList.toggle(
+    "is-collapsed",
+    collapsed
+  );
+  document.body.classList.toggle(
+    "sidebar-collapsed",
+    collapsed
+  );
+
+  els.sidebarToggle.setAttribute(
+    "aria-expanded",
+    String(!collapsed)
+  );
+  els.sidebarToggle.setAttribute(
+    "aria-label",
+    collapsed ? "Expand sidebar" : "Collapse sidebar"
+  );
+  els.sidebarToggle.setAttribute(
+    "title",
+    collapsed ? "Expand sidebar" : "Collapse sidebar"
+  );
+
+  if (els.sidebarBrandToggle) {
+    els.sidebarBrandToggle.disabled = !collapsed;
+    els.sidebarBrandToggle.setAttribute(
+      "aria-label",
+      collapsed ? "Expand sidebar" : "NEA DDCC Map"
+    );
+    els.sidebarBrandToggle.setAttribute(
+      "title",
+      collapsed ? "Expand sidebar" : "NEA DDCC Map"
+    );
+  }
+
+  resizeCanvas();
 }
 
 function drawPolygon(
@@ -544,14 +995,16 @@ function drawPolygon(
 
 function drawElevatedTile(ctx, feature) {
   const progress = Math.max(0, Math.min(1, state.selectionLift));
-  const lift = Math.round(18 * progress);
-  const color = colorForEc(feature.e);
+  const lift = Math.round(26 * progress);
+  const color = state.mode === "outages"
+    ? outageStyleFor(latestOutageForFeature(feature)).fill
+    : colorForEc(feature.e);
   const center = project(
     (feature.b[0] + feature.b[2]) / 2,
     (feature.b[1] + feature.b[3]) / 2
   );
-  const tilt = 0.055 * progress;
-  const expand = 1 + 0.018 * progress;
+  const tilt = 0.08 * progress;
+  const expand = 1 + 0.024 * progress;
 
   if (!lift) {
     drawPolygon(
@@ -569,8 +1022,8 @@ function drawElevatedTile(ctx, feature) {
   ctx.transform(expand, tilt, 0, expand, 0, 0);
   ctx.translate(-center.x, -center.y);
   ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
-  ctx.shadowBlur = 18;
-  ctx.shadowOffsetY = 10;
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 13;
   drawPolygon(
     ctx,
     feature,
@@ -603,12 +1056,58 @@ function drawElevatedTile(ctx, feature) {
     0,
     -lift
   );
+}
+
+function drawSelectionGlow(ctx, feature) {
+  const pulse = Math.max(
+    0,
+    Math.min(1, state.selectionPulse)
+  );
+  const color = state.mode === "outages"
+    ? outageStyleFor(latestOutageForFeature(feature)).fill
+    : colorForEc(feature.e);
+  const center = project(
+    (feature.b[0] + feature.b[2]) / 2,
+    (feature.b[1] + feature.b[3]) / 2
+  );
+  const ringRadius = Math.max(
+    13,
+    Math.min(30, 13 + pulse * 12)
+  );
+
+  ctx.save();
+  ctx.shadowColor = withAlpha(color, 0.85);
+  ctx.shadowBlur = 16 + pulse * 12;
+  drawPolygon(
+    ctx,
+    feature,
+    "rgba(255, 255, 255, 0.035)",
+    withAlpha(color, 0.88),
+    2.8
+  );
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.2 + pulse * 0.12;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([3, 5]);
+  ctx.beginPath();
+  ctx.arc(
+    center.x,
+    center.y,
+    ringRadius,
+    0,
+    Math.PI * 2
+  );
+  ctx.stroke();
   ctx.restore();
 }
 
 function drawMapBase(ctx) {
   const weatherMode =
     state.mode === "weather";
+  const lightMode = isLightTheme();
 
   const gradient =
     ctx.createLinearGradient(
@@ -624,23 +1123,35 @@ function drawMapBase(ctx) {
   */
   gradient.addColorStop(
     0,
-    weatherMode
-      ? "#15181d"
-      : "#101820"
+    lightMode
+      ? weatherMode
+        ? "#e9e9e7"
+        : "#eef5f7"
+      : weatherMode
+        ? "#15181d"
+        : "#101820"
   );
 
   gradient.addColorStop(
     0.55,
-    weatherMode
-      ? "#11151a"
-      : "#0d151d"
+    lightMode
+      ? weatherMode
+        ? "#e2e2df"
+        : "#e5f0f3"
+      : weatherMode
+        ? "#11151a"
+        : "#0d151d"
   );
 
   gradient.addColorStop(
     1,
-    weatherMode
-      ? "#0c1116"
-      : "#09121a"
+    lightMode
+      ? weatherMode
+        ? "#d7d8d5"
+        : "#dcebee"
+      : weatherMode
+        ? "#0c1116"
+        : "#09121a"
   );
 
   ctx.fillStyle = gradient;
@@ -670,9 +1181,13 @@ function drawMapBase(ctx) {
 
   ambientGlow.addColorStop(
     0,
-    weatherMode
-      ? "rgba(115, 125, 135, 0.08)"
-      : "rgba(56, 189, 248, 0.09)"
+    lightMode
+      ? weatherMode
+        ? "rgba(80, 86, 90, 0.06)"
+        : "rgba(14, 116, 144, 0.08)"
+      : weatherMode
+        ? "rgba(115, 125, 135, 0.08)"
+        : "rgba(56, 189, 248, 0.09)"
   );
 
   ambientGlow.addColorStop(
@@ -694,8 +1209,11 @@ function drawMapBase(ctx) {
   ctx.globalAlpha =
     weatherMode ? 0.2 : 0.24;
 
-  ctx.strokeStyle =
-    weatherMode
+  ctx.strokeStyle = lightMode
+    ? weatherMode
+      ? "#c2c8c8"
+      : "#c5d9de"
+    : weatherMode
       ? "#35404a"
       : "#263847";
 
@@ -864,7 +1382,7 @@ function drawPolygons(ctx) {
   const selectedId = state.selected?.id;
   const hoveredId = state.hovered?.id;
   const filtering = hasActiveFilters();
-  const focusActive = state.mode === "ec" && selectedId !== undefined && selectedId !== null;
+  const focusActive = state.mode !== "weather" && selectedId !== undefined && selectedId !== null;
 
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
@@ -895,9 +1413,47 @@ function drawPolygons(ctx) {
       return;
     }
 
+    if (state.mode === "outages") {
+      const report = outageForFeature(feature);
+      const style = outageStyleFor(report?.latest);
+      const selected = feature.id === selectedId;
+      const focusDimmed = focusActive && !selected;
+
+      ctx.save();
+      if (focusDimmed) {
+        ctx.filter = "blur(2px)";
+        ctx.globalAlpha = 0.58;
+      }
+
+      drawPolygon(
+        ctx,
+        feature,
+        focusDimmed
+          ? "#87939a"
+          : dimmed
+          ? "rgba(100, 116, 139, 0.24)"
+          : withAlpha(style.fill, selected ? 0.84 : 0.62),
+        focusDimmed
+          ? "#cbd5e1"
+          : dimmed
+          ? "rgba(100, 116, 139, 0.32)"
+          : style.stroke,
+        focusDimmed ? 0.9 : dimmed ? 0.9 : selected ? 2.2 : 1.35
+      );
+      ctx.restore();
+      return;
+    }
+
     const color = colorForEc(feature.e);
+    const lightMode = isLightTheme();
     const selected = feature.id === selectedId;
     const focusDimmed = focusActive && !selected;
+
+    ctx.save();
+    if (focusDimmed) {
+      ctx.filter = "blur(2px)";
+      ctx.globalAlpha = 0.58;
+    }
 
     drawPolygon(
       ctx,
@@ -911,10 +1467,20 @@ function drawPolygons(ctx) {
         ? "#b7c0c5"
         : dimmed
         ? "rgba(145, 154, 161, 0.34)"
+        : lightMode
+        ? "rgba(38, 63, 70, 0.72)"
         : "rgba(232,241,247,0.72)",
       focusDimmed ? 0.9 : dimmed ? 0.9 : 1.05
     );
+    ctx.restore();
   });
+
+  if (focusActive) {
+    ctx.save();
+    ctx.fillStyle = "rgba(4, 10, 15, 0.2)";
+    ctx.fillRect(0, 0, state.width, state.height);
+    ctx.restore();
+  }
 
   const target = state.visibleFeatures.find(
     (feature) =>
@@ -924,14 +1490,15 @@ function drawPolygons(ctx) {
   );
 
   if (target) {
-    if (state.mode === "ec" && target.id === selectedId) {
+    if (state.mode !== "weather" && target.id === selectedId) {
+      drawSelectionGlow(ctx, target);
       drawElevatedTile(ctx, target);
     } else {
       drawPolygon(
         ctx,
         target,
         "rgba(125,211,252,0.18)",
-        "#e8f1f7",
+        isLightTheme() ? "#123b45" : "#e8f1f7",
         2.2
       );
     }
@@ -955,8 +1522,18 @@ function labelCanDraw(
 }
 
 function drawLabels(ctx) {
+  if (!state.labelsVisible) {
+    return;
+  }
+
   const occupied = [];
   const filtering = hasActiveFilters();
+  const selectedId = state.selected?.id;
+  const focusActive =
+    state.mode !== "weather" &&
+    selectedId !== undefined &&
+    selectedId !== null;
+  const lightMode = isLightTheme();
   const maxLabels =
     state.scale > 95
       ? 260
@@ -1000,7 +1577,13 @@ function drawLabels(ctx) {
     }
 
     const text = label.e;
-    const dimmed = filtering && !labelMatches(label);
+    const labelFeature = featureForLabel(label);
+    const labelOutage = latestOutageForFeature(labelFeature);
+    const focusDimmed =
+      focusActive && labelFeature?.id !== selectedId;
+    const dimmed =
+      focusDimmed ||
+      (filtering && !labelMatches(label));
     const labelSignal =
       state.mode === "weather"
         ? (label.ps || [label.p]).reduce(
@@ -1020,6 +1603,10 @@ function drawLabels(ctx) {
               signalPalette[labelSignal] ||
               signalPalette[0]
             ).fill
+        : state.mode === "outages"
+        ? outageStyleFor(labelOutage).fill
+        : lightMode
+        ? "#0f766e"
         : "#9bdcff";
     const markerColor = dimmed
       ? "#6f7981"
@@ -1028,6 +1615,12 @@ function drawLabels(ctx) {
       ? "#a7afb5"
       : state.mode === "weather"
         ? "#e9e5df"
+        : state.mode === "outages"
+        ? lightMode
+          ? "#7f1d1d"
+          : outageStyleFor(labelOutage).stroke
+        : lightMode
+        ? "#0f4c5c"
         : "#9bdcff";
     const width = Math.min(
       150,
@@ -1046,15 +1639,26 @@ function drawLabels(ctx) {
 
     occupied.push(rect);
     ctx.save();
-    ctx.globalAlpha = dimmed ? 0.58 : 1;
+    ctx.globalAlpha = focusDimmed
+      ? 0.34
+      : dimmed
+      ? 0.58
+      : 1;
+    if (focusDimmed) {
+      ctx.filter = "blur(1.2px)";
+    }
     ctx.fillStyle = markerColor;
     ctx.beginPath();
     ctx.arc(p.x, p.y, 3.6, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = dimmed
-      ? "rgba(25, 31, 35, 0.82)"
-      : "rgba(8,17,29,0.88)";
+      ? lightMode
+        ? "rgba(242, 248, 248, 0.92)"
+        : "rgba(25, 31, 35, 0.82)"
+      : lightMode
+        ? "rgba(255, 255, 255, 0.88)"
+        : "rgba(8,17,29,0.88)";
     roundedRect(ctx, rect.x1, rect.y1, width, 24, 5);
     ctx.fill();
 
@@ -1062,6 +1666,10 @@ function drawLabels(ctx) {
       ? "rgba(138, 149, 157, 0.48)"
       : state.mode === "weather"
         ? withAlpha(signalColor, 0.82)
+        : state.mode === "outages"
+        ? withAlpha(outageStyleFor(labelOutage).fill, 0.5)
+        : lightMode
+        ? "rgba(15,118,110,0.38)"
         : "rgba(125,211,252,0.3)";
     ctx.stroke();
 
@@ -1131,7 +1739,7 @@ function roundedRect(
 function draw() {
   state.raf = null;
 
-  if (state.mode !== "ec") {
+  if (state.mode === "weather") {
     return;
   }
 
@@ -1296,10 +1904,194 @@ function findFeatureAt(
   return null;
 }
 
+function positionDetailPanel(feature) {
+  if (!feature || !els.detailPanel || !state.bounds) {
+    return;
+  }
+
+  const corners = [
+    project(feature.b[0], feature.b[1]),
+    project(feature.b[0], feature.b[3]),
+    project(feature.b[2], feature.b[1]),
+    project(feature.b[2], feature.b[3]),
+  ];
+  const featureRect = {
+    left: Math.min(...corners.map((point) => point.x)),
+    right: Math.max(...corners.map((point) => point.x)),
+    top: Math.min(...corners.map((point) => point.y)),
+    bottom: Math.max(...corners.map((point) => point.y)),
+  };
+  const anchors = [
+    "top-right",
+    "top-left",
+    "bottom-right",
+    "bottom-left",
+  ];
+  let bestAnchor = anchors[0];
+  let smallestOverlap = Number.POSITIVE_INFINITY;
+
+  anchors.forEach((anchor) => {
+    els.detailPanel.dataset.anchor = anchor;
+    const panel = els.detailPanel.getBoundingClientRect();
+    const overlapWidth = Math.max(
+      0,
+      Math.min(panel.right, featureRect.right) -
+        Math.max(panel.left, featureRect.left)
+    );
+    const overlapHeight = Math.max(
+      0,
+      Math.min(panel.bottom, featureRect.bottom) -
+        Math.max(panel.top, featureRect.top)
+    );
+    const overlap = overlapWidth * overlapHeight;
+
+    if (overlap < smallestOverlap) {
+      smallestOverlap = overlap;
+      bestAnchor = anchor;
+    }
+  });
+
+  els.detailPanel.dataset.anchor = bestAnchor;
+}
+
+function positionPetOverlay() {
+  if (!els.petOverlay || !els.mapCanvas) {
+    return;
+  }
+
+  const mapRect = els.mapCanvas.parentElement?.getBoundingClientRect();
+  const petWidth = els.petOverlay.offsetWidth || 90;
+  const petHeight = els.petOverlay.offsetHeight || 142;
+
+  if (!mapRect || !mapRect.width) {
+    return;
+  }
+
+  const compact = window.innerWidth <= 620;
+  const rightInset = compact ? 12 : 22;
+  const bottomInset = compact ? 66 : 78;
+  let left = mapRect.width - petWidth - rightInset;
+  let top = mapRect.height - petHeight - bottomInset;
+
+  // The lower-right companion faces back into the map instead of toward the card.
+  els.petOverlay.dataset.side = "right";
+
+  left = Math.max(8, Math.min(mapRect.width - petWidth - 8, left));
+  top = Math.max(8, Math.min(mapRect.height - petHeight - 8, top));
+
+  els.petOverlay.style.left = `${left}px`;
+  els.petOverlay.style.top = `${top}px`;
+}
+
+function showPet() {
+  if (
+    !els.petOverlay ||
+    !els.detailPet ||
+    petUserHidden ||
+    petModeHidden ||
+    state.selected
+  ) {
+    return;
+  }
+
+  window.clearTimeout(petHideTimer);
+  els.petOverlay.hidden = false;
+  els.detailPet.src = PET_ASSETS[state.mode] || PET_ASSETS.ec;
+  els.petOverlay.dataset.pose = state.mode;
+  els.petOverlay.classList.remove("is-retreating");
+  els.petRestoreButton && (els.petRestoreButton.hidden = true);
+  updatePetGuide();
+  positionPetOverlay();
+  void els.petOverlay.offsetWidth;
+  els.petOverlay.classList.add("is-visible");
+}
+
+function updatePetGuide() {
+  const guide = PET_GUIDES[state.mode] || PET_GUIDES.ec;
+
+  if (els.petBubbleTitle) {
+    els.petBubbleTitle.textContent = guide.title;
+  }
+  if (els.petBubbleText) {
+    els.petBubbleText.textContent = guide.text;
+  }
+  if (els.petOverlay) {
+    els.petOverlay.setAttribute("aria-label", `Open guide: ${guide.title}`);
+  }
+}
+
+function togglePetBubble(forceOpen) {
+  if (!els.petBubble) {
+    return;
+  }
+
+  const shouldOpen =
+    typeof forceOpen === "boolean"
+      ? forceOpen
+      : els.petBubble.hidden;
+
+  updatePetGuide();
+  els.petBubble.hidden = !shouldOpen;
+  els.petOverlay?.classList.toggle("is-talking", shouldOpen);
+}
+
+function setPetUserHidden(hidden) {
+  petUserHidden = hidden;
+  petModeHidden = false;
+  try {
+    window.localStorage.setItem(
+      PET_VISIBILITY_STORAGE_KEY,
+      hidden ? "hidden" : "visible"
+    );
+  } catch {
+    // Storage may be unavailable in private or embedded browser contexts.
+  }
+
+  if (hidden) {
+    hidePet();
+  } else if (!state.selected) {
+    showPet();
+  }
+
+  if (els.petRestoreButton) {
+    els.petRestoreButton.hidden = !hidden;
+  }
+}
+
+function initializePetVisibility() {
+  try {
+    petUserHidden =
+      window.localStorage.getItem(PET_VISIBILITY_STORAGE_KEY) === "hidden";
+  } catch {
+    petUserHidden = false;
+  }
+}
+
+function hidePet() {
+  if (!els.petOverlay) {
+    return;
+  }
+
+  window.clearTimeout(petHideTimer);
+  togglePetBubble(false);
+  if (els.petRestoreButton) {
+    els.petRestoreButton.hidden = !(petUserHidden || petModeHidden);
+  }
+  els.petOverlay.classList.remove("is-visible");
+  els.petOverlay.classList.add("is-retreating");
+  petHideTimer = window.setTimeout(() => {
+    els.petOverlay.hidden = true;
+    els.petOverlay.classList.remove("is-retreating");
+  }, 340);
+}
+
 function setDetails(
   feature
 ) {
   if (!feature) {
+    petModeHidden = false;
+    showPet();
+    document.body.classList.remove("detail-dock-open");
     els.detailPanel.hidden =
       true;
 
@@ -1319,17 +2111,71 @@ function setDetails(
     els.detailSignal.textContent =
       "--";
 
+    els.detailSignalLabel.textContent =
+      "TCWS signal";
+
+    els.detailMode.textContent =
+      "EC coverage area";
+
+    els.detailProvinceCount.textContent =
+      "--";
+
+    els.detailProvinceCountLabel.textContent =
+      "Service area";
+    els.detailProvinceCountHint.textContent =
+      "province(s)";
+    els.detailProvinceLabel.textContent =
+      "Service province(s)";
+
+    els.detailStatusTag.textContent =
+      "ONLINE";
+    els.detailStatusTag.classList.remove(
+      "is-alert"
+    );
+
+    els.detailSignalHint.textContent =
+      "Weather signal status";
+
+    els.detailSource.textContent =
+      "--";
+
+    els.detailUpdated.textContent =
+      "--";
+
+    resizeCanvas();
 
     return;
   }
 
+  document.body.classList.add("detail-dock-open");
   els.detailPanel.hidden =
     false;
 
+  resizeCanvas();
+  positionDetailPanel(feature);
+  hidePet();
+
   const signal = signalForFeature(feature);
+  const provinces = [
+    ...new Set(
+      (feature.ps || [feature.p]).filter(Boolean)
+    ),
+  ];
+  const isWeather = state.mode === "weather";
+  const isOutages = state.mode === "outages";
+  const outageReport = outageForFeature(feature);
+  const outage = outageReport?.latest;
+  const outageDetailStyle = outageStyleFor(outage);
+  const status = isOutages
+    ? outage?.status || "No recent report"
+    : feature.s && feature.s !== "Blank"
+      ? feature.s
+      : "Coverage available";
   const accent =
-    state.mode === "weather"
+    isWeather
       ? (signalPalette[signal] || signalPalette[0]).fill
+      : isOutages
+        ? outageDetailStyle.fill
       : colorForEc(feature.e);
 
   els.detailPanel.style.setProperty(
@@ -1344,19 +2190,152 @@ function setDetails(
     "is-open"
   );
 
+  if (isOutages) {
+    els.detailProvince.textContent = [
+      outage?.areas,
+      outage?.feeder ? `Feeder ${outage.feeder}` : "",
+      outage?.cause ? `Cause ${outage.cause}` : "",
+      outage?.remarks,
+    ]
+      .filter(Boolean)
+      .join(" · ") || "No recent interruption report";
+  } else {
   els.detailProvince.textContent =
-    feature.p || "--";
+    provinces.length
+      ? provinces.join(" · ")
+      : "--";
+
+  }
+
+  els.detailProvinceCount.textContent = isOutages
+    ? String(outageReport?.count || 0)
+    : String(provinces.length || 0);
+
+  els.detailProvinceCountLabel.textContent = isOutages
+    ? "Interruption reports"
+    : "Service area";
+  els.detailProvinceCountHint.textContent = isOutages
+    ? "latest report shown"
+    : "province(s)";
+  els.detailProvinceLabel.textContent = isOutages
+    ? "Latest interruption details"
+    : "Service province(s)";
 
   els.detailEc.textContent =
     feature.e || "--";
 
   els.detailStatus.textContent =
-    feature.s || "Blank";
+    status;
+
+  els.detailMode.textContent =
+    isWeather
+      ? "Weather coverage area"
+      : isOutages
+        ? "Latest unscheduled interruption"
+        : "EC coverage area";
+
+  els.detailStatusTag.textContent =
+    isWeather
+      ? signal > 0
+        ? "ALERT"
+        : "CLEAR"
+      : isOutages
+        ? outage
+          ? outageStatusKey(outage).toUpperCase()
+          : "NO REPORT"
+        : "ONLINE";
+  els.detailStatusTag.classList.toggle(
+    "is-alert",
+    (isWeather && signal > 0) ||
+      (isOutages && outageStatusKey(outage) === "ongoing")
+  );
+
+  els.detailSignalLabel.textContent = isOutages
+    ? "Latest status"
+    : "TCWS signal";
+  els.detailSignal.textContent =
+    isOutages
+      ? outageDetailStyle.label
+      : signalLabel(signal);
+
+  els.detailSignalHint.textContent =
+    isWeather
+      ? signal > 0
+        ? "Active TCWS signal"
+        : "No active TCWS signal"
+      : isOutages
+        ? outage
+          ? `${outageReport.count} report(s) · ${formatOutageDate(outage.RECORD_TIMESTAMP)}`
+          : "No recent report for this EC"
+        : "TCWS data available in Weather mode";
+
+  els.detailSource.textContent =
+    isWeather
+      ? state.weather?.source || "PAGASA TCWS bulletin"
+      : isOutages
+        ? outage?.DATA_SOURCE || "Unscheduled interruptions API"
+        : "NEA DDCC · EC coverage dataset";
+
+  els.detailUpdated.textContent =
+    isWeather
+      ? state.weather?.issuedAt || "TCWS timestamp unavailable"
+      : isOutages
+        ? outage
+          ? `Report ${formatOutageDate(outage.RECORD_TIMESTAMP)}`
+          : "No outage report loaded"
+        : "Local boundary data";
+
+  /* legacy province count assignment replaced above */
+  /*
+  els.detailProvinceCount.textContent =
+    String(provinces.length || 0);
+
+  els.detailEc.textContent =
+    feature.e || "--";
+
+  els.detailStatus.textContent =
+    status;
+
+  els.detailMode.textContent =
+    isWeather
+      ? "Weather coverage area"
+      : "EC coverage area";
+
+  els.detailStatusTag.textContent =
+    isWeather
+      ? signal > 0
+        ? "ALERT"
+        : "CLEAR"
+      : "ONLINE";
+  els.detailStatusTag.classList.toggle(
+    "is-alert",
+    isWeather && signal > 0
+  );
 
   els.detailSignal.textContent =
     signalLabel(signal);
 
+  els.detailSignalHint.textContent =
+    isWeather
+      ? signal > 0
+        ? "Active TCWS signal"
+        : "No active TCWS signal"
+      : "TCWS data available in Weather mode";
 
+  els.detailSource.textContent =
+    isWeather
+      ? state.weather?.source || "PAGASA TCWS bulletin"
+      : "NEA DDCC · EC coverage dataset";
+
+  els.detailUpdated.textContent =
+    isWeather
+      ? state.weather?.issuedAt || "TCWS timestamp unavailable"
+      : "Local boundary data";
+
+
+}
+
+  */
 }
 
 function weatherFeatureStyle(feature) {
@@ -1459,6 +2438,10 @@ function addWindyLabels() {
 
   state.windy.labels.forEach((marker) => marker.remove());
   state.windy.labels = [];
+
+  if (!state.labelsVisible) {
+    return;
+  }
 
   const filtering = hasActiveFilters();
   const rankedLabels = [...state.data.labels].sort(
@@ -1583,6 +2566,11 @@ function selectWeatherFeature(feature) {
     return;
   }
 
+  if (state.selected?.id === feature.id) {
+    resetMapSelection();
+    return;
+  }
+
   state.selected = feature;
   state.hovered = null;
   els.tooltip.hidden = true;
@@ -1603,6 +2591,7 @@ function selectWeatherFeature(feature) {
     }
   );
 }
+
 
 function fitWindyMap(animate = true) {
   if (!state.windy.map || !state.bounds) {
@@ -1746,6 +2735,20 @@ function initWindyMap() {
   );
 }
 
+function clearCanvasFocus() {
+  if (state.mode === "weather" || !state.selected) {
+    return;
+  }
+
+  state.selected = null;
+  state.selectionLift = 0;
+  state.selectionPulse = 0;
+  state.hovered = null;
+  state.viewAnimation += 1;
+  setDetails(null);
+  scheduleDraw();
+}
+
 function resetMapSelection() {
   els.searchInput.value = "";
   els.provinceSelect.value = "";
@@ -1758,13 +2761,21 @@ function resetMapSelection() {
   };
   state.selected = null;
   state.selectionLift = 0;
+  state.selectionPulse = 0;
   state.hovered = null;
+  state.viewAnimation += 1;
 
   setDetails(null);
   updateVisible();
 
-  if (state.mode === "ec") {
-    scheduleDraw();
+  if (state.windy.initialized) {
+    refreshWindyCoverage();
+  }
+
+  if (state.mode === "weather") {
+    fitWindyMap(true);
+  } else {
+    animateCanvasToBounds();
   }
 }
 
@@ -1798,13 +2809,30 @@ function focusCanvasFeature(feature) {
         targetScale,
   };
   const startedAt = performance.now();
-  const duration = 420;
+  const duration = 820;
+  const animationId = ++state.viewAnimation;
 
   function frame(now) {
+    if (animationId !== state.viewAnimation) {
+      return;
+    }
+
     const progress = Math.min(
       1,
       (now - startedAt) / duration
     );
+    const liftPhase = Math.min(
+      1,
+      progress / 0.82
+    );
+    const liftEase =
+      1 - Math.pow(1 - liftPhase, 3);
+    const settlePhase =
+      progress <= 0.72
+        ? 0
+        : (progress - 0.72) / 0.28;
+    const settleEase =
+      1 - Math.pow(1 - settlePhase, 3);
     const eased =
       1 - Math.pow(1 - progress, 3);
 
@@ -1817,13 +2845,25 @@ function focusCanvasFeature(feature) {
     state.offsetY =
       start.offsetY +
       (target.offsetY - start.offsetY) * eased;
-    state.selectionLift = eased;
+    state.selectionLift =
+      progress < 0.72
+        ? liftEase
+        : 1 +
+          Math.sin(settlePhase * Math.PI) *
+            0.08 *
+            (1 - settleEase);
+    state.selectionPulse = Math.min(
+      1,
+      progress / 0.62
+    );
 
     updateZoomReadout();
     scheduleDraw();
 
     if (progress < 1) {
       requestAnimationFrame(frame);
+    } else {
+      positionDetailPanel(feature);
     }
   }
 
@@ -1836,13 +2876,46 @@ function selectCanvasFeature(feature) {
     return;
   }
 
+  if (state.selected?.id === feature.id) {
+    resetMapSelection();
+    return;
+  }
+
   state.selected = feature;
   state.selectionLift = 0;
+  state.selectionPulse = 0;
   els.tooltip.hidden = true;
   setDetails(feature);
   focusCanvasFeature(feature);
   scheduleDraw();
 }
+
+function zoomCanvasBy(factor) {
+  if (state.mode === "weather" || !state.bounds) {
+    return;
+  }
+
+  const x = state.width / 2;
+  const y = state.height / 2;
+  const before = screenToLonLat(x, y);
+
+  state.scale = Math.max(
+    35,
+    Math.min(600, state.scale * factor)
+  );
+
+  const after = project(before.lon, before.lat);
+  state.offsetX += x - after.x;
+  state.offsetY += y - after.y;
+
+  if (factor < 1) {
+    clearCanvasFocus();
+  }
+
+  updateZoomReadout();
+  scheduleDraw();
+}
+
 function updateZoomReadout() {
   if (!els.zoomReadout) {
     return;
@@ -1950,7 +3023,50 @@ function bindEvents() {
       setMode("weather")
   );
 
-  els.fitButton.addEventListener(
+  els.modeOutages?.addEventListener(
+    "click",
+    () => setMode("outages")
+  );
+
+  els.sidebarToggle?.addEventListener(
+    "click",
+    () => {
+      setSidebarCollapsed(
+        !els.sidebar.classList.contains("is-collapsed")
+      );
+    }
+  );
+
+  els.sidebarBrandToggle?.addEventListener(
+    "click",
+    () => {
+      if (els.sidebar.classList.contains("is-collapsed")) {
+        setSidebarCollapsed(false);
+      }
+    }
+  );
+
+  els.themeToggle?.addEventListener(
+    "click",
+    () => setTheme(isLightTheme() ? "dark" : "light")
+  );
+
+  els.labelsToggle?.addEventListener(
+    "click",
+    () => setLabelsVisible(!state.labelsVisible)
+  );
+
+  els.zoomOutButton.addEventListener(
+    "click",
+    () => zoomCanvasBy(0.82)
+  );
+
+  els.zoomInButton.addEventListener(
+    "click",
+    () => zoomCanvasBy(1.22)
+  );
+
+  els.centerButton.addEventListener(
     "click",
     () => {
       if (state.mode === "weather") {
@@ -1964,29 +3080,28 @@ function bindEvents() {
   els.detailClose.addEventListener(
     "click",
     () => {
-      state.selected = null;
-
-      setDetails(null);
-
-      if (state.windy.initialized) {
-        refreshWindyCoverage();
-      }
-
-      scheduleDraw();
+      resetMapSelection();
     }
   );
 
-  els.clearButton.addEventListener(
+  els.petOverlay?.addEventListener(
     "click",
-    () => {
-      resetMapSelection();
+    () => togglePetBubble()
+  );
 
-      if (state.mode === "weather") {
-        fitWindyMap(true);
-      } else {
-        fitToBounds(true);
-      }
-    }
+  els.petBubbleClose?.addEventListener(
+    "click",
+    () => togglePetBubble(false)
+  );
+
+  els.petBubbleHide?.addEventListener(
+    "click",
+    () => setPetUserHidden(true)
+  );
+
+  els.petRestoreButton?.addEventListener(
+    "click",
+    () => setPetUserHidden(false)
   );
 
   els.searchInput.addEventListener(
@@ -2138,6 +3253,23 @@ function bindEvents() {
     (event) => {
       event.preventDefault();
 
+      const featureUnderCursor =
+        state.mode === "weather"
+          ? null
+          : findFeatureAt(
+              event.clientX,
+              event.clientY
+            );
+
+      if (
+        event.deltaY < 0 &&
+        featureUnderCursor &&
+        state.selected?.id !== featureUnderCursor.id
+      ) {
+        selectCanvasFeature(featureUnderCursor);
+        return;
+      }
+
       const rect =
         state.canvas
           .getBoundingClientRect();
@@ -2186,6 +3318,10 @@ function bindEvents() {
       state.offsetY +=
         y -
         afterPoint.y;
+
+      if (event.deltaY > 0) {
+        clearCanvasFocus();
+      }
 
       updateZoomReadout();
 
@@ -2247,6 +3383,29 @@ async function loadWeatherSignals() {
   prepareWeatherSignals();
 }
 
+async function loadOutages() {
+  try {
+    const response = await fetch(
+      "http://26.8.239.167:3010/api/dashboard/retrieve-unscheduled-interruptions",
+      { cache: "no-store" }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Could not load outage data: ${response.status}`
+      );
+    }
+
+    prepareOutages(await response.json());
+  } catch (error) {
+    state.outages.records = [];
+    state.outages.byEc = new Map();
+    state.outages.loadedAt = null;
+    state.outages.error = error;
+    console.warn(error);
+  }
+}
+
 async function loadData() {
   const response =
     await fetch(
@@ -2265,7 +3424,10 @@ async function loadData() {
   state.bounds =
     state.data.bbox;
 
+  renderSplashCoverageMap();
+
   await loadWeatherSignals();
+  await loadOutages();
 
   populateControls();
 
@@ -2276,20 +3438,28 @@ async function loadData() {
 
 async function main() {
   initElements();
+  splashStartedAt = performance.now();
+  window.setTimeout(hideSplashScreen, 4200);
+  initializeTheme();
+  initializeLabels();
+  initializePetVisibility();
 
   bindEvents();
 
   resizeCanvas();
+  showPet();
 
   try {
     await loadData();
 
     scheduleDraw();
+    hideSplashScreen();
   } catch (error) {
     els.visibleCount.textContent =
       "Map data failed to load";
 
     console.error(error);
+    hideSplashScreen();
   }
 }
 

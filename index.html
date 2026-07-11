@@ -3,63 +3,113 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EC Coverage Map</title>
+    <title>NEA DDCC Map</title>
     <link rel="stylesheet" href="styles.css?v=windy-leaflet-13" />
   </head>
-  <body>
+  <body class="sidebar-collapsed" data-theme="dark">
+    <div id="splashScreen" class="splash-screen" role="status" aria-live="polite">
+      <div class="splash-screen__grid" aria-hidden="true"></div>
+      <div class="splash-screen__content">
+        <div class="splash-screen__brand"><img src="assets/nea.png" alt="" /><span>NEA</span><i></i> DDCC</div>
+        <div class="splash-screen__map-wrap" aria-hidden="true">
+          <svg class="splash-screen__map" viewBox="0 0 320 430" role="img" aria-label="Philippines map silhouette">
+            <defs>
+              <linearGradient id="splashLandGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#3ef2b0" />
+                <stop offset="0.55" stop-color="#1fbd88" />
+                <stop offset="1" stop-color="#e8c45b" />
+              </linearGradient>
+            </defs>
+            <g id="splashCoverageShapes" class="splash-screen__land" fill="url(#splashLandGradient)">
+              <path d="M135 31c-14 4-25 18-29 34-4 13-14 22-16 38-2 17 8 25 3 40-5 15-17 25-15 43 2 15 15 22 17 37 2 15-7 29 2 40 7 9 18 5 24 15 7 13 2 30 13 38 10 7 21-2 29-13 9-13 4-26 11-38 8-13 22-17 21-34-1-12-12-20-10-34 2-17 13-28 10-45-3-16-17-26-17-42 0-15 8-30 1-43-7-13-26-40-44-36Z" />
+              <path d="M108 203c-13 7-19 17-17 28 2 10 13 13 22 18 10 6 17 14 24 12 7-2 10-12 7-20-4-11-19-16-20-25-1-7-8-14-16-13Z" />
+              <path d="M88 250c-8 2-12 9-10 16 2 7 10 10 16 8 7-2 10-9 7-15-2-6-7-10-13-9Z" />
+              <path d="M136 267c-14 3-24 13-23 24 1 10 12 14 23 13 11-1 22-8 27-17 5-10-3-21-14-22-4 0-9 1-13 2Z" />
+              <path d="M114 310c-7 3-9 10-5 16 4 6 13 8 18 4 6-4 5-12-1-17-3-3-8-5-12-3Z" />
+              <path d="M124 345c-8 3-14 11-11 18 3 8 13 10 22 8 11-3 20-12 19-21-2-9-18-10-30-5Z" />
+              <path d="M181 119c-9 2-15 10-13 18 2 8 12 12 20 8 8-3 13-11 10-18-3-7-10-10-17-8Z" />
+              <path d="M188 157c-7 3-11 10-8 16 3 6 11 8 17 5 6-3 8-10 5-16-3-5-9-7-14-5Z" />
+              <path d="M204 190c-9 5-12 14-7 22 4 7 14 9 22 5 9-4 13-13 9-21-4-8-15-10-24-6Z" />
+              <path d="M212 228c-8 4-11 12-7 19 4 7 13 9 20 5 8-4 11-12 7-19-4-7-12-9-20-5Z" />
+              <path d="M206 272c-9 4-13 13-9 21 4 8 14 11 22 7 9-4 13-14 9-22-4-8-13-10-22-6Z" />
+              <path d="M184 306c-7 4-9 11-5 17 4 6 12 7 18 3 6-4 8-11 4-17-4-6-11-7-17-3Z" />
+              <path d="M196 345c-9 3-14 12-11 20 3 9 14 13 24 10 14-4 27-15 28-27 1-10-11-15-22-13-6 1-13 6-19 10Z" />
+              <path d="M60 156c-6 2-9 8-6 13 3 5 10 6 14 2 5-4 5-10 1-13-2-2-6-3-9-2Z" />
+            </g>
+            <g id="splashSignals" class="splash-screen__signals" fill="#f6d36a">
+              <circle cx="147" cy="82" r="3" /><circle cx="128" cy="183" r="3" /><circle cx="211" cy="207" r="3" /><circle cx="216" cy="356" r="3" />
+            </g>
+          </svg>
+        </div>
+        <p class="splash-screen__title">NEA DDCC MAP</p>
+        <p class="splash-screen__status"><span></span> Initializing national coverage</p>
+      </div>
+    </div>
     <main class="app-shell">
-      <aside class="sidebar" aria-label="Map filters">
-        <div class="brand">
-          <div class="brand-mark">EC</div>
-          <div>
-            <h1>EC Coverage Map</h1>
-            <div class="status-line">
-              <span class="status-dot" aria-hidden="true"></span>
-              <span class="hud-label">Feed online &middot; NEA DDCC</span>
+      <aside id="sidebar" class="sidebar is-collapsed" aria-label="Map filters">
+        <div class="sidebar-head">
+          <div class="brand">
+            <button id="sidebarBrandToggle" class="brand-mark sidebar-brand-toggle" type="button" aria-label="Expand sidebar" title="Expand sidebar" disabled>
+              <img src="assets/nea.png" alt="NEA logo" />
+            </button>
+            <div>
+              <h1>NEA DDCC Map</h1>
+              <div class="status-line">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span class="hud-label">Feed online &middot; NEA DDCC</span>
+              </div>
             </div>
+          </div>
+          <div class="sidebar-actions">
+            <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-controls="sidebarContent" aria-expanded="false" title="Expand sidebar" aria-label="Expand sidebar">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+            </button>
           </div>
         </div>
 
+        <div id="sidebarContent" class="sidebar-content">
+          <section class="mode-panel hud-corners" aria-label="Map mode">
+            <span class="panel-kicker">Map Mode</span>
+            <div class="mode-switch" role="group" aria-label="Map mode switch">
+              <button id="modeEc" class="mode-button is-active" type="button">EC</button>
+              <button id="modeWeather" class="mode-button" type="button">Weather</button>
+              <button id="modeOutages" class="mode-button" type="button">Outages</button>
+            </div>
+            <p id="weatherStatus" class="mode-status">Weather mode reads TCWS signals from local data.</p>
+          </section>
 
-        <section class="mode-panel hud-corners" aria-label="Map mode">
-          <span class="panel-kicker">Map Mode</span>
-          <div class="mode-switch" role="group" aria-label="Map mode switch">
-            <button id="modeEc" class="mode-button is-active" type="button">EC</button>
-            <button id="modeWeather" class="mode-button" type="button">Weather</button>
-          </div>
-          <p id="weatherStatus" class="mode-status">Weather mode reads TCWS signals from local data.</p>
-        </section>
+          <section class="controls" aria-label="Filters">
+            <label>
+              Search
+              <input id="searchInput" type="search" placeholder="EC or province" autocomplete="off" />
+            </label>
 
-        <section class="signal-legend hud-corners" aria-label="Weather signal legend">
-          <span class="panel-kicker">TCWS Legend</span>
-          <div class="legend-row"><span class="signal-chip signal-0"></span>No signal</div>
-          <div class="legend-row"><span class="signal-chip signal-1"></span>Signal 1</div>
-          <div class="legend-row"><span class="signal-chip signal-2"></span>Signal 2</div>
-          <div class="legend-row"><span class="signal-chip signal-3"></span>Signal 3</div>
-          <div class="legend-row"><span class="signal-chip signal-4"></span>Signal 4</div>
-          <div class="legend-row"><span class="signal-chip signal-5"></span>Signal 5</div>
-        </section>
+            <label>
+              Province
+              <select id="provinceSelect">
+                <option value="">All provinces</option>
+              </select>
+            </label>
 
-        <section class="controls" aria-label="Filters">
-          <label>
-            Search
-            <input id="searchInput" type="search" placeholder="EC or province" autocomplete="off" />
-          </label>
+            <label>
+              Electric cooperative
+              <select id="ecSelect">
+                <option value="">All EC values</option>
+              </select>
+            </label>
+          </section>
 
-          <label>
-            Province
-            <select id="provinceSelect">
-              <option value="">All provinces</option>
-            </select>
-          </label>
+          <section id="signalLegend" class="signal-legend hud-corners" aria-label="Weather signal legend" hidden>
+            <span class="panel-kicker">TCWS Legend</span>
+            <div class="legend-row"><span class="signal-chip signal-0"></span>No signal</div>
+            <div class="legend-row"><span class="signal-chip signal-1"></span>Signal 1</div>
+            <div class="legend-row"><span class="signal-chip signal-2"></span>Signal 2</div>
+            <div class="legend-row"><span class="signal-chip signal-3"></span>Signal 3</div>
+            <div class="legend-row"><span class="signal-chip signal-4"></span>Signal 4</div>
+            <div class="legend-row"><span class="signal-chip signal-5"></span>Signal 5</div>
+          </section>
 
-          <label>
-            Electric cooperative
-            <select id="ecSelect">
-              <option value="">All EC values</option>
-            </select>
-          </label>
-        </section>
+        </div>
       </aside>
 
       <section class="map-panel" aria-label="Interactive coverage map">
@@ -69,45 +119,78 @@
             <span id="hintText">Drag to pan, wheel to zoom, click EC polygon to inspect</span>
           </div>
           <div class="toolbar-actions" aria-label="Map view controls">
-            <button id="fitButton" class="toolbar-icon-button" type="button" title="Fit map to the Philippines" aria-label="Fit map to the Philippines">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3H3v6M15 3h6v6M21 15v6h-6M3 15v6h6" /></svg>
+            <button id="labelsToggle" class="toolbar-icon-button labels-toggle" type="button" title="Hide map labels" aria-label="Hide map labels" aria-pressed="true">
+              <svg class="labels-icon labels-icon--visible" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6s9.5 6 9.5 6s-3.5 6-9.5 6s-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg>
+              <svg class="labels-icon labels-icon--hidden" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 6.2A10.7 10.7 0 0 1 12 6c6 0 9.5 6 9.5 6a17.7 17.7 0 0 1-3.2 3.8M6.2 6.4C3.8 8.1 2.5 12 2.5 12s3.5 6 9.5 6a10.5 10.5 0 0 0 3.2-.5" /></svg>
             </button>
-            <button id="clearButton" class="toolbar-icon-button" type="button" title="Reset filters and map view" aria-label="Reset filters and map view">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2.1 5.4M20 4v7h-7" /></svg>
+            <button id="themeToggle" class="toolbar-icon-button theme-toggle" type="button" title="Use light mode" aria-label="Use light mode" aria-pressed="false">
+              <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>
+              <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.4A8.5 8.5 0 0 1 9.6 3.5a8.5 8.5 0 1 0 10.9 10.9Z" /></svg>
+            </button>
+            <button id="zoomOutButton" class="toolbar-icon-button" type="button" title="Zoom out" aria-label="Zoom out">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+            </button>
+            <button id="zoomInButton" class="toolbar-icon-button" type="button" title="Zoom in" aria-label="Zoom in">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            </button>
+            <button id="centerButton" class="toolbar-icon-button" type="button" title="Center map" aria-label="Center map">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8Z" /></svg>
             </button>
           </div>
         </div>
         <div id="windy" aria-label="Windy weather forecast map" hidden></div>
         <canvas id="mapCanvas"></canvas>
         <div class="coord-bar hud-label" aria-hidden="true">
-          <span>LON <span id="coordLon">--</span></span>
-          <span class="divider"></span>
-          <span>LAT <span id="coordLat">--</span></span>
-          <span class="divider"></span>
-          <span>ZOOM <span id="zoomReadout">--</span></span>
+          <div class="coord-readout">
+            <span>LON <span id="coordLon">--</span></span>
+            <span class="divider"></span>
+            <span>LAT <span id="coordLat">--</span></span>
+            <span class="divider"></span>
+            <span>ZOOM <span id="zoomReadout">--</span></span>
+          </div>
+          <section id="outageLegend" class="outage-footer" aria-label="Outage status legend" hidden>
+            <span class="outage-footer__title">Outage legend</span>
+            <div class="legend-row"><span class="outage-chip outage-ongoing"></span>Ongoing</div>
+            <div class="legend-row"><span class="outage-chip outage-restored"></span>Restored</div>
+            <div class="legend-row"><span class="outage-chip outage-none"></span>No recent report</div>
+          </section>
         </div>
         <aside id="detailPanel" class="detail-panel hud-corners" aria-live="polite" aria-label="Selected EC details" hidden>
           <div class="detail-panel__header">
-            <div>
+            <div class="detail-panel__identity">
               <span class="detail-panel__eyebrow">Live EC selection</span>
               <strong id="detailEc">--</strong>
+              <span id="detailMode" class="detail-panel__mode">EC coverage area</span>
             </div>
-            <button id="detailClose" class="icon-button" type="button" title="Close details">x</button>
+            <button id="detailClose" class="icon-button" type="button" title="Close details" aria-label="Close details">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
           </div>
           <div class="detail-panel__status">
             <span class="detail-panel__status-dot" aria-hidden="true"></span>
             <span id="detailStatus">--</span>
+            <span id="detailStatusTag" class="detail-panel__status-tag">ONLINE</span>
           </div>
-          <div class="detail-panel__signal">
-            <span>TCWS signal</span>
-            <strong id="detailSignal">--</strong>
-          </div>
-          <dl>
-            <div>
-              <dt>Service province(s)</dt>
-              <dd id="detailProvince">--</dd>
+          <div class="detail-panel__metrics">
+            <div class="detail-panel__metric detail-panel__metric--signal">
+              <span id="detailSignalLabel">TCWS signal</span>
+              <strong id="detailSignal">--</strong>
+              <small id="detailSignalHint">Weather signal status</small>
             </div>
-          </dl>
+            <div class="detail-panel__metric">
+              <span id="detailProvinceCountLabel">Service area</span>
+              <strong id="detailProvinceCount">--</strong>
+              <small id="detailProvinceCountHint">province(s)</small>
+            </div>
+          </div>
+          <div class="detail-panel__section">
+            <span id="detailProvinceLabel" class="detail-panel__section-label">Service province(s)</span>
+            <p id="detailProvince">--</p>
+          </div>
+          <div class="detail-panel__footer">
+            <span class="detail-panel__source"><span class="detail-panel__source-dot" aria-hidden="true"></span><span id="detailSource">--</span></span>
+            <span id="detailUpdated">--</span>
+          </div>
         </aside>
         <div id="tooltip" class="tooltip" hidden></div>
       </section>
