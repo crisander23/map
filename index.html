@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC Coverage Map</title>
+    <link rel="stylesheet" href="styles.css?v=windy-leaflet-13" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Map filters">
+        <div class="brand">
+          <div class="brand-mark">EC</div>
+          <div>
+            <h1>EC Coverage Map</h1>
+            <div class="status-line">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span class="hud-label">Feed online &middot; NEA DDCC</span>
+            </div>
+          </div>
+        </div>
+
+
+        <section class="mode-panel hud-corners" aria-label="Map mode">
+          <span class="panel-kicker">Map Mode</span>
+          <div class="mode-switch" role="group" aria-label="Map mode switch">
+            <button id="modeEc" class="mode-button is-active" type="button">EC</button>
+            <button id="modeWeather" class="mode-button" type="button">Weather</button>
+          </div>
+          <p id="weatherStatus" class="mode-status">Weather mode reads TCWS signals from local data.</p>
+        </section>
+
+        <section class="signal-legend hud-corners" aria-label="Weather signal legend">
+          <span class="panel-kicker">TCWS Legend</span>
+          <div class="legend-row"><span class="signal-chip signal-0"></span>No signal</div>
+          <div class="legend-row"><span class="signal-chip signal-1"></span>Signal 1</div>
+          <div class="legend-row"><span class="signal-chip signal-2"></span>Signal 2</div>
+          <div class="legend-row"><span class="signal-chip signal-3"></span>Signal 3</div>
+          <div class="legend-row"><span class="signal-chip signal-4"></span>Signal 4</div>
+          <div class="legend-row"><span class="signal-chip signal-5"></span>Signal 5</div>
+        </section>
+
+        <section class="controls" aria-label="Filters">
+          <label>
+            Search
+            <input id="searchInput" type="search" placeholder="EC or province" autocomplete="off" />
+          </label>
+
+          <label>
+            Province
+            <select id="provinceSelect">
+              <option value="">All provinces</option>
+            </select>
+          </label>
+
+          <label>
+            Electric cooperative
+            <select id="ecSelect">
+              <option value="">All EC values</option>
+            </select>
+          </label>
+        </section>
+      </aside>
+
+      <section class="map-panel" aria-label="Interactive coverage map">
+        <div class="map-toolbar hud-corners">
+          <div class="sr-only">
+            <strong id="visibleCount">Loading EC polygons...</strong>
+            <span id="hintText">Drag to pan, wheel to zoom, click EC polygon to inspect</span>
+          </div>
+          <div class="toolbar-actions" aria-label="Map view controls">
+            <button id="fitButton" class="toolbar-icon-button" type="button" title="Fit map to the Philippines" aria-label="Fit map to the Philippines">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3H3v6M15 3h6v6M21 15v6h-6M3 15v6h6" /></svg>
+            </button>
+            <button id="clearButton" class="toolbar-icon-button" type="button" title="Reset filters and map view" aria-label="Reset filters and map view">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2.1 5.4M20 4v7h-7" /></svg>
+            </button>
+          </div>
+        </div>
+        <div id="windy" aria-label="Windy weather forecast map" hidden></div>
+        <canvas id="mapCanvas"></canvas>
+        <div class="coord-bar hud-label" aria-hidden="true">
+          <span>LON <span id="coordLon">--</span></span>
+          <span class="divider"></span>
+          <span>LAT <span id="coordLat">--</span></span>
+          <span class="divider"></span>
+          <span>ZOOM <span id="zoomReadout">--</span></span>
+        </div>
+        <aside id="detailPanel" class="detail-panel hud-corners" aria-live="polite" aria-label="Selected EC details" hidden>
+          <div class="detail-panel__header">
+            <div>
+              <span class="detail-panel__eyebrow">Live EC selection</span>
+              <strong id="detailEc">--</strong>
+            </div>
+            <button id="detailClose" class="icon-button" type="button" title="Close details">x</button>
+          </div>
+          <div class="detail-panel__status">
+            <span class="detail-panel__status-dot" aria-hidden="true"></span>
+            <span id="detailStatus">--</span>
+          </div>
+          <div class="detail-panel__signal">
+            <span>TCWS signal</span>
+            <strong id="detailSignal">--</strong>
+          </div>
+          <dl>
+            <div>
+              <dt>Service province(s)</dt>
+              <dd id="detailProvince">--</dd>
+            </div>
+          </dl>
+        </aside>
+        <div id="tooltip" class="tooltip" hidden></div>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+    <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+    <script src="config.js?v=windy-1"></script>
+    <script src="app.js?v=windy-leaflet-13"></script>
+  </body>
+</html>
+

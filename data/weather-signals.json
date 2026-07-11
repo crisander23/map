@@ -1,0 +1,11 @@
+{
+  "source": "Manual TCWS input from PAGASA tropical cyclone bulletin",
+  "issuedAt": "Update this from the latest PAGASA Tropical Cyclone Bulletin",
+  "signals": {
+    "Batanes": 2,
+    "Cagayan": 1,
+    "Isabela": 1,
+    "Apayao": 1,
+    "Ilocos Norte": 1
+  }
+}
