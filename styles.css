@@ -2301,3 +2301,7 @@ body[data-theme="light"] .sidebar:not(.is-collapsed) { background: linear-gradie
 body[data-theme="light"] .sidebar:not(.is-collapsed) .panel,
 body[data-theme="light"] .sidebar:not(.is-collapsed) .mode-panel,
 body[data-theme="light"] .sidebar:not(.is-collapsed) .controls { background: rgba(255,255,255,.72); border-color: var(--line); }
+body[data-theme="light"][data-mode="weather"] .signal-legend,
+body[data-theme="light"][data-mode="weather"] .mode-panel,
+body[data-theme="light"][data-mode="weather"] .controls { background: rgba(255,255,255,.92) !important; border-color: var(--line); color: var(--text); }
+body[data-theme="light"][data-mode="weather"] .signal-legend .legend-row { color: var(--text); }
