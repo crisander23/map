@@ -2296,3 +2296,8 @@ body:not([data-mode="weather"]) #weatherLayerSwitch {
 .earthquake-legend-icon--moderate { --quake-color: #facc15; }
 .earthquake-legend-icon--minor { --quake-color: #38bdf8; }
 .earthquake-legend .earthquake-legend-icon img { width: 11px; height: 11px; object-fit: contain; filter: brightness(0) invert(1); }
+/* Keep the light sidebar filled across the full app height. */
+body[data-theme="light"] .sidebar:not(.is-collapsed) { background: linear-gradient(180deg, #ffffff 0%, #f3f8f8 58%, #eaf2f3 100%) !important; color: var(--text); min-height: 100vh; height: 100%; }
+body[data-theme="light"] .sidebar:not(.is-collapsed) .panel,
+body[data-theme="light"] .sidebar:not(.is-collapsed) .mode-panel,
+body[data-theme="light"] .sidebar:not(.is-collapsed) .controls { background: rgba(255,255,255,.72); border-color: var(--line); }
