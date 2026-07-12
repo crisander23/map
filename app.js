@@ -32,6 +32,18 @@ const state = {
   temperatureUpdatedAt: "",
   rainfallByFeature: new Map(),
   rainfallUpdatedAt: "",
+  gdacsVolcanoes: [],
+  gdacsVolcanoesUpdatedAt: "",
+  gdacsVolcanoMarkers: [],
+  phivolcsVolcanoMarkers: [],
+  volcanoMarkersVisible: true,
+  phivolcsMarkersVisible: false,
+  faultLinesVisible: true,
+  faultLinesLoaded: false,
+  faultLinesLoading: false,
+  faultLinesGeoJson: null,
+  faultLinesLayer: null,
+  gdacsEarthquakes: [],
   filters: {
     search: "",
     province: "",
@@ -349,6 +361,9 @@ function initElements() {
     "weatherLegendTitle",
     "tcwsTimestamp",
     "tcwsCadence",
+    "volcanoMarkersToggle",
+    "phivolcsMarkersToggle",
+    "faultLinesToggle",
     "outageLegend",
     "mapCanvas",
     "windy",
@@ -377,6 +392,7 @@ function initElements() {
     "petBubbleHide",
     "petRestoreButton",
     "detailClose",
+    "detailEyebrow",
     "detailMode",
     "detailProvince",
     "detailProvinceCount",
@@ -872,6 +888,33 @@ function updateVisible() {
   scheduleDraw();
 }
 
+const PHIVOLCS_VOLCANOES = [
+  { name: "Babuyan Claro", lat: 19.52408, lon: 121.95005, province: "Babuyan Island Group, Cagayan in Luzon" },
+  { name: "Banahaw", lat: 14.06038, lon: 121.48803, province: "Boundaries of Laguna and Quezon in Luzon" },
+  { name: "Biliran (Anas)", lat: 11.63268, lon: 124.47162, province: "Leyte in Visayas" },
+  { name: "Bud Dajo", lat: 6.01295, lon: 121.05772, province: "Sulu in Mindanao" },
+  { name: "Bulusan", lat: 12.76853, lon: 124.05445, province: "Sorsogon, Bicol Region in Luzon" },
+  { name: "Cabalian", lat: 10.27986, lon: 125.21598, province: "Southern Leyte in Visayas" },
+  { name: "Cagua", lat: 18.22116, lon: 122.1163, province: "Cagayan in Luzon" },
+  { name: "Camiguin de Babuyanes", lat: 18.83037, lon: 121.86280, province: "Babuyan Island Group, Cagayan in Luzon" },
+  { name: "Didicas", lat: 19.07533, lon: 122.20147, province: "Babuyan Island Group, Cagayan in Luzon" },
+  { name: "Hibok-hibok", lat: 9.20427, lon: 124.67115, province: "Camiguin in Mindanao" },
+  { name: "Iraya", lat: 20.46669, lon: 122.01078, province: "Batan Island, Batanes in Luzon" },
+  { name: "Iriga", lat: 13.45606, lon: 123.45479, province: "Camarines Sur in Luzon" },
+  { name: "Isarog", lat: 13.65685, lon: 123.38087, province: "Camarines Sur in Luzon" },
+  { name: "Kanlaon", lat: 10.41129, lon: 123.13243, province: "Negros Oriental and Negros Occidental in Visayas" },
+  { name: "Leonard Kniaseff", lat: 7.39359, lon: 126.06418, province: "Davao del Norte" },
+  { name: "Makaturing", lat: 7.64371, lon: 124.31718, province: "Lanao del Sur" },
+  { name: "Matutum", lat: 6.36111, lon: 125.07603, province: "Cotobato in Mindanao" },
+  { name: "Mayon", lat: 13.25519, lon: 123.68615, province: "Albay, Bicol Region in Luzon" },
+  { name: "Musuan (Calayo)", lat: 7.87680, lon: 125.06985, province: "Bukidnon in Mindanao" },
+  { name: "Parker", lat: 6.10274, lon: 124.88879, province: "South Cotobato, General Santos, North Cotabato, Sarangani Provinces in Mindanao" },
+  { name: "Pinatubo", lat: 15.14162, lon: 120.350845, province: "Boundaries of Pampanga, Tarlac and Zambales in Luzon" },
+  { name: "Ragang", lat: 7.69066, lon: 124.50639, province: "Lanao del Sur and Cotobato in Mindanao" },
+  { name: "Smith", lat: 19.53915, lon: 121.91367, province: "Babuyan Island Group, Cagayan in Luzon" },
+  { name: "Taal", lat: 14.01024, lon: 120.99812, province: "Batangas in Luzon" },
+];
+
 const WEATHER_LAYER_CONFIG = {
   tcws: {
     label: "Typhoon signal",
@@ -891,6 +934,19 @@ const WEATHER_LAYER_CONFIG = {
     overlay: "rain",
     status: "Open-Meteo precipitation layer",
   },
+  volcano: {
+    label: "Volcanic eruption",
+    legendTitle: "GDACS Volcanic Eruptions",
+    overlay: "wind",
+    status: "GDACS volcanic eruption layer",
+  },
+  earthquake: {
+    label: "Earthquake",
+    legendTitle: "GDACS Earthquakes",
+    overlay: "wind",
+    status: "GDACS earthquake layer",
+  },
+
   temperature: {
     label: "Temperature",
     legendTitle: "Temperature Legend",
@@ -942,6 +998,82 @@ function weatherStatusText() {
   return config.status + " · Updated " + weatherUpdatedText() + cadence;
 }
 
+function clearGdacsVolcanoMarkers() {
+  state.gdacsVolcanoMarkers.forEach((marker) => marker.remove());
+  state.phivolcsVolcanoMarkers.forEach((marker) => marker.remove());
+  state.gdacsVolcanoMarkers = [];
+  state.phivolcsVolcanoMarkers = [];
+}
+
+const PHILIPPINE_FAULT_LINES_IMAGE_URL =
+  "https://gisweb.phivolcs.dost.gov.ph/arcgis/rest/services/PHIVOLCS/ActiveFault/MapServer/export" +
+  "?bbox=115%2C4%2C130%2C22&bboxSR=4326&imageSR=4326&size=2048%2C2048" +
+  "&format=png32&transparent=true&layers=show%3A0&f=image";
+
+function clearFaultLines() {
+  if (state.faultLinesLayer) {
+    state.faultLinesLayer.remove();
+    state.faultLinesLayer = null;
+  }
+}
+
+function loadFaultLines() {
+  if (!state.faultLinesVisible || !state.windy.map || !window.L) return;
+  state.faultLinesLoaded = true;
+  plotFaultLines();
+}
+
+function plotFaultLines() {
+  clearFaultLines();
+  if (!state.faultLinesVisible || !state.windy.map || !window.L) return;
+
+  state.faultLinesLayer = L.imageOverlay(
+    PHILIPPINE_FAULT_LINES_IMAGE_URL + "&cache=" + Date.now(),
+    [[4, 115], [22, 130]],
+    { opacity: 0.98, interactive: false, zIndex: 650, className: "fault-lines-image" }
+  ).addTo(state.windy.map);
+  state.faultLinesLayer.bringToFront();
+}
+
+function setFaultLinesVisible(visible) {
+  state.faultLinesVisible = visible;
+  if (!visible) {
+    clearFaultLines();
+    return;
+  }
+  loadFaultLines();
+}
+function plotGdacsVolcanoes() {
+  clearGdacsVolcanoMarkers();
+  if (!state.windy.map || !window.L) return;
+  if (state.volcanoMarkersVisible) state.gdacsVolcanoes.filter((volcano) => /philippines/i.test(volcano.country)).forEach((volcano) => {
+    const level = String(volcano.alertlevel || "Green").toLowerCase();
+    const icon = L.divIcon({ className: "gdacs-volcano-icon gdacs-level-" + level, html: "<img src=\"assets/volcano-icon.png\" alt=\"\">", iconSize: [40, 40], iconAnchor: [20, 35] });
+    const marker = L.marker([volcano.lat, volcano.lon], { icon, keyboard: false, title: volcano.name }).addTo(state.windy.map);
+    marker.bindTooltip(volcano.name + " · GDACS " + volcano.alertlevel, { direction: "top", offset: [0, -18] });
+    marker.on("click", (event) => { L.DomEvent.stopPropagation(event.originalEvent); selectVolcanoMarker(volcano, "GDACS"); });
+    state.gdacsVolcanoMarkers.push(marker);
+  });
+
+  if (state.phivolcsMarkersVisible) {
+    const phivolcsIcon = L.divIcon({ className: "phivolcs-volcano-icon", html: "<img src=\"assets/volcano-icon.png\" alt=\"\">", iconSize: [34, 34], iconAnchor: [17, 30] });
+    PHIVOLCS_VOLCANOES.forEach((volcano) => {
+      const marker = L.marker([volcano.lat, volcano.lon], { icon: phivolcsIcon, keyboard: false, title: "PHIVOLCS " + volcano.name }).addTo(state.windy.map);
+      marker.bindTooltip("PHIVOLCS " + volcano.name + " - " + volcano.province, { direction: "top", offset: [0, -16] });
+      marker.on("click", (event) => { L.DomEvent.stopPropagation(event.originalEvent); selectVolcanoMarker(volcano, "PHIVOLCS"); });
+      state.phivolcsVolcanoMarkers.push(marker);
+    });
+  }
+}
+function updateGdacsVolcanoStatus() {
+  const element = document.getElementById("gdacsPhilippinesAlerts");
+  if (!element) return;
+  const events = state.gdacsVolcanoes.filter((volcano) => /philippines/i.test(volcano.country));
+  element.innerHTML = events.length ? events.map((volcano) => {
+    const level = String(volcano.alertlevel || "Green").toLowerCase();
+    return "<div class=\"gdacs-alert-row\"><i class=\"gdacs-alert-icon gdacs-alert-icon--" + level + "\"></i><span><strong>" + escapeLabelText(volcano.name) + "</strong><small>Philippines - GDACS " + escapeLabelText(volcano.alertlevel || "Green") + "</small></span></div>";
+  }).join("") : "<span class=\"weather-legend-meta\">No current Philippine GDACS volcano alert</span>";
+}
 function setWeatherLayer(layer) {
   if (!WEATHER_LAYER_CONFIG[layer]) {
     return;
@@ -993,15 +1125,21 @@ function setMode(mode) {
     els.outageLegend.hidden = mode !== "outages";
   }
 
+
   if (modeChanged) {
     setSidebarCollapsed(true);
   }
+
+  if (mode !== "weather") clearGdacsVolcanoMarkers();
+  if (mode !== "weather") clearFaultLines();
 
   if (mode !== "weather" && state.windTimer) {
     window.clearTimeout(state.windTimer);
     state.windTimer = null;
   }
-  if (els.weatherStatus && mode === "outages") {
+  if (els.weatherStatus && mode === "disaster") {
+    els.weatherStatus.textContent = "GDACS volcanic eruption feed";
+  } else if (els.weatherStatus && mode === "outages") {
     els.weatherStatus.textContent = state.outages.error
       ? "Outage feed unavailable - showing no recent reports."
       : `${formatNumber(state.outages.records.length)} reports loaded · latest report per EC shown.`;
@@ -1011,6 +1149,11 @@ function setMode(mode) {
 
   if (mode === "weather") {
     initWindyMap();
+    if (state.windy.initialized && state.faultLinesVisible) { loadFaultLines(); }
+  }
+
+  if (mode === "disaster") {
+    loadGdacsVolcanoes();
   }
 
   els.modeEc?.classList.toggle(
@@ -1027,6 +1170,7 @@ function setMode(mode) {
     "is-active",
     mode === "outages"
   );
+
 
   if (state.selected) {
     setDetails(state.selected);
@@ -1525,6 +1669,13 @@ function drawPolygons(ctx) {
 
     const dimmed = filtering && !featureMatches(feature);
 
+    if (state.mode === "disaster") {
+      const style = disasterStyleForFeature(feature);
+      const selected = feature.id === selectedId;
+      drawPolygon(ctx, feature, dimmed ? "rgba(68, 77, 85, 0.28)" : withAlpha(style.fill, selected ? 0.88 : 0.74), dimmed ? "rgba(140, 151, 160, 0.34)" : style.stroke, selected ? 2.3 : 1.35);
+      return;
+    }
+
     if (state.mode === "weather") {
       const unassigned = !isSelectableFeature(feature);
       const color = unassigned
@@ -1994,6 +2145,41 @@ function pointInFeature(
   );
 }
 
+function ecScopeForVolcano(volcano) {
+  const point = { lon: Number(volcano.lon), lat: Number(volcano.lat) };
+  const features = state.data?.features?.filter(isSelectableFeature) || [];
+  const containing = features.filter((feature) => pointInFeature(point, feature));
+  if (containing.length) return { features: containing, exact: true };
+
+  const nearest = features
+    .map((feature) => {
+      const dx = Math.max(feature.b[0] - point.lon, 0, point.lon - feature.b[2]);
+      const dy = Math.max(feature.b[1] - point.lat, 0, point.lat - feature.b[3]);
+      return { feature, distance: Math.sqrt(dx * dx + dy * dy) };
+    })
+    .sort((a, b) => a.distance - b.distance)
+    .filter((item) => item.distance <= 1.5)
+    .slice(0, 4)
+    .map((item) => item.feature);
+  return { features: nearest, exact: false };
+}
+
+function selectVolcanoMarker(volcano, source) {
+  state.selected = {
+    id: "volcano:" + source + ":" + volcano.name + ":" + volcano.lat + ":" + volcano.lon,
+    isVolcano: true,
+    volcano,
+    volcanoSource: source,
+    b: [volcano.lon - 0.1, volcano.lat - 0.1, volcano.lon + 0.1, volcano.lat + 0.1],
+  };
+  state.hovered = null;
+  state.weatherSelectionAnimation += 1;
+  if (els.tooltip) els.tooltip.hidden = true;
+  setDetails(state.selected);
+  if (state.windy.map) {
+    state.windy.map.flyTo([volcano.lat, volcano.lon], Math.max(state.windy.map.getZoom(), 8), { animate: true, duration: 0.7 });
+  }
+}
 function findFeatureAt(
   clientX,
   clientY
@@ -2224,6 +2410,44 @@ function hidePet() {
   }, 340);
 }
 
+function setVolcanoDetails(selection) {
+  const volcano = selection.volcano || {};
+  const source = selection.volcanoSource === "GDACS" ? "GDACS active eruption" : "Active volcano";
+  const scope = ecScopeForVolcano(volcano);
+  const scopeNames = scope.features.map((feature) => feature.e).filter(Boolean);
+  const hasAlertLevel = selection.volcanoSource === "GDACS" && volcano.alertlevel;
+  const level = hasAlertLevel ? String(volcano.alertlevel) : "No current data";
+  const accent = selection.volcanoSource === "GDACS" && /red|orange/i.test(level) ? "#ff5b3d" : "#f97316";
+  const province = volcano.province || volcano.country || "Philippines";
+  const scopeLabel = scopeNames.length ? scopeNames.join(" · ") : "No named EC within mapped scope";
+
+  document.body.classList.add("detail-dock-open");
+  els.detailPanel.hidden = false;
+  els.detailPanel.style.setProperty("--selected-color", accent);
+  els.detailPanel.classList.remove("is-open");
+  void els.detailPanel.offsetWidth;
+  els.detailPanel.classList.add("is-open");
+  resizeCanvas();
+  positionDetailPanel(selection);
+  hidePet();
+
+  els.detailEyebrow.textContent = "VOLCANO / EC SCOPE";
+  els.detailEc.textContent = volcano.name || "Volcano";
+  els.detailMode.textContent = source;
+  els.detailStatusTag.textContent = selection.volcanoSource === "GDACS" ? level.toUpperCase() : "ACTIVE";
+  els.detailStatusTag.classList.toggle("is-alert", selection.volcanoSource === "GDACS" && !/green/i.test(level));
+  els.detailStatus.textContent = "Mapped volcanic location";
+  els.detailSignalLabel.textContent = "Current alert level";
+  els.detailSignal.textContent = level;
+  els.detailSignalHint.textContent = selection.volcanoSource === "GDACS" ? "Current GDACS volcanic eruption status" : "Alert-level data is not connected yet";
+  els.detailProvinceCountLabel.textContent = "EC scope";
+  els.detailProvinceCount.textContent = String(scopeNames.length);
+  els.detailProvinceCountHint.textContent = scope.exact ? "cooperative(s) containing point" : "nearest cooperative(s)";
+  els.detailProvinceLabel.textContent = "Location / electric cooperative";
+  els.detailProvince.textContent = [province, "EC: " + scopeLabel].join(" · ");
+  els.detailSource.textContent = selection.volcanoSource === "GDACS" ? source : "PHIVOLCS active volcano reference";
+  els.detailUpdated.textContent = selection.volcanoSource === "GDACS" ? (state.gdacsVolcanoesUpdatedAt ? formatOutageDate(state.gdacsVolcanoesUpdatedAt) : "Feed time unavailable") : "PHIVOLCS reference inventory";
+}
 function setDetails(
   feature
 ) {
@@ -2253,6 +2477,7 @@ function setDetails(
     els.detailSignalLabel.textContent =
       "TCWS signal";
 
+    els.detailEyebrow.textContent = "Selected cooperative";
     els.detailMode.textContent =
       "EC coverage area";
 
@@ -2283,6 +2508,11 @@ function setDetails(
 
     resizeCanvas();
 
+    return;
+  }
+
+  if (feature?.isVolcano) {
+    setVolcanoDetails(feature);
     return;
   }
 
@@ -2562,6 +2792,8 @@ function weatherMetricForFeature(feature) {
 }
 
 function weatherPaletteForFeature(feature) {
+  if (state.weatherLayer === "volcano") return signalPalette[gdacsEventSeverityForFeature(feature, state.gdacsVolcanoes)] || signalPalette[0];
+  if (state.weatherLayer === "earthquake") return signalPalette[gdacsEventSeverityForFeature(feature, state.gdacsEarthquakes)] || signalPalette[0];
   if (state.weatherLayer === "tcws") {
     const signal = signalForFeature(feature);
     return signalPalette[signal] || signalPalette[0];
@@ -2624,6 +2856,54 @@ function weatherPaletteForFeature(feature) {
 
   return { fill: "#fb7185", stroke: "#fecdd3" };
 }
+function distanceKm(lat1, lon1, lat2, lon2) {
+  const toRad = (value) => value * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function gdacsEventSeverityForFeature(feature, events) {
+  if (!events.length) return 0;
+  const lat = (feature.b[1] + feature.b[3]) / 2;
+  const lon = (feature.b[0] + feature.b[2]) / 2;
+  return events.reduce((max, event) => {
+    const distance = distanceKm(lat, lon, event.lat, event.lon);
+    const radius = event.type === "EQ" ? 180 : 120;
+    return Math.max(max, distance <= radius ? 4 : distance <= radius * 2 ? 3 : distance <= radius * 4 ? 2 : 0);
+  }, 0);
+}
+
+function gdacsVolcanoSeverityForFeature(feature) {
+  if (!state.gdacsVolcanoes.length) return 0;
+  const lat = (feature.b[1] + feature.b[3]) / 2;
+  const lon = (feature.b[0] + feature.b[2]) / 2;
+  return state.gdacsVolcanoes.reduce((max, volcano) => {
+    const distance = distanceKm(lat, lon, volcano.lat, volcano.lon);
+    return Math.max(max, distance <= 120 ? 4 : distance <= 250 ? 3 : distance <= 450 ? 2 : 0);
+  }, 0);
+}
+function disasterSeverityForFeature(feature) {
+  const signal = signalForFeature(feature);
+  const floodValues = (feature.ps || [feature.p]).map((province) => state.weather?.flood?.[normalizeProvince(province)] ?? 0);
+  const flood = Math.max(0, ...floodValues.map(Number).filter(Number.isFinite));
+  const rainfall = state.rainfallByFeature.get(feature.id)?.precipitation || 0;
+  const outage = outageForFeature(feature)?.latest;
+  const outageActive = outage && outageStatusKey(outage) === "ongoing" ? 2 : 0;
+  const rainSeverity = rainfall >= 15 ? 3 : rainfall >= 5 ? 2 : rainfall > 0 ? 1 : 0;
+  return gdacsVolcanoSeverityForFeature(feature);
+}
+
+function disasterStyleForFeature(feature) {
+  const severity = disasterSeverityForFeature(feature);
+  if (severity >= 4) return { fill: "#c026d3", stroke: "#f0abfc" };
+  if (severity >= 3) return { fill: "#ef4444", stroke: "#fecaca" };
+  if (severity >= 2) return { fill: "#f97316", stroke: "#fed7aa" };
+  if (severity >= 1) return { fill: "#facc15", stroke: "#fef08a" };
+  return { fill: "#3f4b52", stroke: "#94a3b8" };
+}
+
 function weatherFeatureStyle(feature) {
   const selected = state.selected?.id === feature.id;
   const focusActive =
@@ -2906,6 +3186,31 @@ function refreshWindyCoverage() {
   addWindyLabels();
 }
 
+async function loadGdacsVolcanoes() {
+  try {
+    const response = await fetch("https://www.gdacs.org/gdacsapi/api/events/geteventlist/map?eventtypes=VO", { cache: "no-store" });
+    if (!response.ok) throw new Error("GDACS request failed: " + response.status);
+    const payload = await response.json();
+    state.gdacsVolcanoes = (payload.features || []).filter((feature) => feature.properties?.iscurrent && feature.geometry?.coordinates).map((feature) => ({ name: feature.properties.name || "Volcanic eruption", country: feature.properties.country || "", alertlevel: feature.properties.alertlevel || "Green", lat: Number(feature.geometry.coordinates[1]), lon: Number(feature.geometry.coordinates[0]) })).filter((volcano) => Number.isFinite(volcano.lat) && Number.isFinite(volcano.lon));
+    state.gdacsVolcanoesUpdatedAt = new Date().toISOString();
+    updateGdacsVolcanoStatus();
+    plotGdacsVolcanoes();
+    scheduleDraw();
+  } catch (error) {
+    console.warn("Could not load GDACS volcanic eruptions", error);
+    updateGdacsVolcanoStatus();
+  }
+}
+async function loadGdacsEarthquakes() {
+  try {
+    const response = await fetch("https://www.gdacs.org/gdacsapi/api/events/geteventlist/map?eventtypes=EQ", { cache: "no-store" });
+    if (!response.ok) throw new Error("GDACS earthquake request failed: " + response.status);
+    const payload = await response.json();
+    state.gdacsEarthquakes = (payload.features || []).filter((feature) => feature.properties?.iscurrent && feature.geometry?.coordinates).map((feature) => ({ type: "EQ", name: feature.properties.name || "Earthquake", alertlevel: feature.properties.alertlevel || "Green", lat: Number(feature.geometry.coordinates[1]), lon: Number(feature.geometry.coordinates[0]) })).filter((event) => Number.isFinite(event.lat) && Number.isFinite(event.lon));
+    state.gdacsEarthquakesUpdatedAt = new Date().toISOString();
+    scheduleDraw();
+  } catch (error) { console.warn("Could not load GDACS earthquakes", error); }
+}
 async function loadTemperatureCoverage() {
   const features = state.data?.features?.filter(isSelectableFeature) || [];
   if (!features.length) {
@@ -3178,6 +3483,8 @@ function initWindyMap() {
 
       refreshWindyCoverage();
       fitWindyMap(false);
+      plotGdacsVolcanoes();
+      if (state.faultLinesVisible) loadFaultLines();
       els.weatherStatus.textContent =
         "Windy forecast active - TCWS layer retained.";
       window.setTimeout(
@@ -3471,6 +3778,10 @@ function bindEvents() {
     resizeCanvas
   );
 
+  els.volcanoMarkersToggle?.addEventListener("change", (event) => { state.volcanoMarkersVisible = event.target.checked; plotGdacsVolcanoes(); });
+  els.phivolcsMarkersToggle?.addEventListener("change", (event) => { state.phivolcsMarkersVisible = event.target.checked; plotGdacsVolcanoes(); });
+  els.faultLinesToggle?.addEventListener("change", (event) => setFaultLinesVisible(event.target.checked));
+
   els.modeEc?.addEventListener(
     "click",
     () => setMode("ec")
@@ -3486,6 +3797,7 @@ function bindEvents() {
     "click",
     () => setMode("outages")
   );
+
 
   document.querySelectorAll("[data-weather-layer]").forEach((button) => {
     button.addEventListener("click", () => setWeatherLayer(button.dataset.weatherLayer));
@@ -3532,7 +3844,14 @@ function bindEvents() {
   els.centerButton.addEventListener(
     "click",
     () => {
-      if (state.mode === "weather") {
+      if (state.mode === "disaster") {
+      const style = disasterStyleForFeature(feature);
+      const selected = feature.id === selectedId;
+      drawPolygon(ctx, feature, dimmed ? "rgba(68, 77, 85, 0.28)" : withAlpha(style.fill, selected ? 0.88 : 0.74), dimmed ? "rgba(140, 151, 160, 0.34)" : style.stroke, selected ? 2.3 : 1.35);
+      return;
+    }
+
+    if (state.mode === "weather") {
         fitWindyMap(true);
       } else {
         fitToBounds(true);

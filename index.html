@@ -71,18 +71,25 @@
             <span class="panel-kicker">Map Mode</span>
             <div class="mode-switch" role="group" aria-label="Map mode switch">
               <button id="modeEc" class="mode-button is-active" type="button">EC</button>
-              <button id="modeWeather" class="mode-button" type="button">Weather</button>
+              <button id="modeWeather" class="mode-button" type="button">DRRMD</button>
               <button id="modeOutages" class="mode-button" type="button">Outages</button>
             </div>
             <p id="weatherStatus" class="mode-status">Weather mode reads TCWS signals from local data.</p>
             <section id="weatherLayerSwitch" class="weather-layer-switch" aria-label="Weather layer" hidden>
-              <span class="panel-kicker">Weather layer</span>
+              <span class="panel-kicker">DRRMD layer</span>
               <div class="weather-layer-buttons" role="group" aria-label="Weather layer selector">
                 <button type="button" class="weather-layer-button is-active" data-weather-layer="tcws">TCWS</button>
                 <button type="button" class="weather-layer-button" data-weather-layer="flood">Flood</button>
                 <button type="button" class="weather-layer-button" data-weather-layer="temperature">Temp</button>
                 <button type="button" class="weather-layer-button" data-weather-layer="rainfall">Rain</button>
               </div>
+              <label class="volcano-marker-toggle"><input id="volcanoMarkersToggle" type="checkbox" checked /> <span>Show GDACS active alerts</span></label>
+              <label class="volcano-marker-toggle"><input id="phivolcsMarkersToggle" type="checkbox" /> <span>Show active volcanoes</span></label>
+              <label class="volcano-marker-toggle fault-line-toggle"><input id="faultLinesToggle" type="checkbox" checked /> <span>Show Philippine fault lines</span></label>
+              <div class="volcano-source-legend"><span><img class="volcano-legend-icon volcano-legend-icon--phivolcs" src="assets/volcano-icon.png" alt="" />Active volcanoes</span><span><img class="volcano-legend-icon volcano-legend-icon--green" src="assets/volcano-icon.png" alt="" />GDACS Green</span><span><img class="volcano-legend-icon volcano-legend-icon--orange" src="assets/volcano-icon.png" alt="" />GDACS Orange</span><span><img class="volcano-legend-icon volcano-legend-icon--red" src="assets/volcano-icon.png" alt="" />GDACS Red</span></div>
+              <div id="gdacsPhilippinesAlerts" class="gdacs-philippines-alerts"><span class="weather-legend-meta">Loading GDACS Philippines alerts</span></div>
+              <small class="weather-legend-meta">Source: GDACS current volcanic eruption feed</small>
+              <small class="weather-legend-meta fault-line-source">Fault lines: DOST-PHIVOLCS Active Fault Map</small>
             </section>
           </section>
 
@@ -192,7 +199,7 @@
           <div class="detail-panel__header">
             <div class="detail-panel__identity">
               <div class="detail-panel__eyebrow-row">
-                <span class="detail-panel__eyebrow">Selected cooperative</span>
+                <span id="detailEyebrow" class="detail-panel__eyebrow">Selected cooperative</span>
                 <span id="detailStatusTag" class="detail-panel__status-tag">ONLINE</span>
               </div>
               <strong id="detailEc">--</strong>

@@ -1359,6 +1359,12 @@ body:not([data-mode="outages"]) #outageLegend,
 
 .mode-panel { display: block; margin-top: 8px; color: #8ea3ad; font-size: 0.68rem; line-height: 1.45; }
 
+/* Disaster mode removed; GDACS volcanoes are a DRRMD layer. */
+.disaster-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; padding: 14px; background: #0d0d0c; border: 1px solid #36332f; border-radius: var(--radius); }
+.disaster-legend .panel-kicker, .disaster-legend .weather-legend-meta { grid-column: 1 / -1; }
+.disaster-chip { width: 18px; height: 10px; display: inline-block; border: 1px solid rgba(255,255,255,.35); }
+.disaster-chip--clear { background: #3f4b52; } .disaster-chip--watch { background: #facc15; } .disaster-chip--warning { background: #f97316; } .disaster-chip--critical { background: #ef4444; }
+
 .signal-legend {
   padding: 14px;
   background: rgba(17, 26, 36, 0.82);
@@ -1395,6 +1401,12 @@ body:not([data-mode="outages"]) #outageLegend,
 }
 
 .weather-legend-meta { display: block; margin-top: 8px; color: #8ea3ad; font-size: 0.68rem; line-height: 1.45; }
+
+/* Disaster mode removed; GDACS volcanoes are a DRRMD layer. */
+.disaster-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; padding: 14px; background: #0d0d0c; border: 1px solid #36332f; border-radius: var(--radius); }
+.disaster-legend .panel-kicker, .disaster-legend .weather-legend-meta { grid-column: 1 / -1; }
+.disaster-chip { width: 18px; height: 10px; display: inline-block; border: 1px solid rgba(255,255,255,.35); }
+.disaster-chip--clear { background: #3f4b52; } .disaster-chip--watch { background: #facc15; } .disaster-chip--warning { background: #f97316; } .disaster-chip--critical { background: #ef4444; }
 
 .signal-legend {
   display: grid;
@@ -1457,6 +1469,12 @@ body:not([data-mode="outages"]) #outageLegend,
   .mode-panel,
   .weather-legend-meta { display: block; margin-top: 8px; color: #8ea3ad; font-size: 0.68rem; line-height: 1.45; }
 
+/* Disaster mode removed; GDACS volcanoes are a DRRMD layer. */
+.disaster-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; padding: 14px; background: #0d0d0c; border: 1px solid #36332f; border-radius: var(--radius); }
+.disaster-legend .panel-kicker, .disaster-legend .weather-legend-meta { grid-column: 1 / -1; }
+.disaster-chip { width: 18px; height: 10px; display: inline-block; border: 1px solid rgba(255,255,255,.35); }
+.disaster-chip--clear { background: #3f4b52; } .disaster-chip--watch { background: #facc15; } .disaster-chip--warning { background: #f97316; } .disaster-chip--critical { background: #ef4444; }
+
 .signal-legend {
     grid-column: 1 / -1;
   }
@@ -1505,6 +1523,12 @@ body[data-mode="weather"] .toolbar-icon-button {
 body[data-mode="weather"] .controls,
 body[data-mode="weather"] .mode-panel,
 body[data-mode="weather"] .weather-legend-meta { display: block; margin-top: 8px; color: #8ea3ad; font-size: 0.68rem; line-height: 1.45; }
+
+/* Disaster mode removed; GDACS volcanoes are a DRRMD layer. */
+.disaster-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; padding: 14px; background: #0d0d0c; border: 1px solid #36332f; border-radius: var(--radius); }
+.disaster-legend .panel-kicker, .disaster-legend .weather-legend-meta { grid-column: 1 / -1; }
+.disaster-chip { width: 18px; height: 10px; display: inline-block; border: 1px solid rgba(255,255,255,.35); }
+.disaster-chip--clear { background: #3f4b52; } .disaster-chip--watch { background: #facc15; } .disaster-chip--warning { background: #f97316; } .disaster-chip--critical { background: #ef4444; }
 
 .signal-legend {
   background: #0d0d0c;
@@ -1869,6 +1893,12 @@ body[data-theme="light"] .controls,
 body[data-theme="light"] .mode-panel,
 body[data-theme="light"] .weather-legend-meta { display: block; margin-top: 8px; color: #8ea3ad; font-size: 0.68rem; line-height: 1.45; }
 
+/* Disaster mode removed; GDACS volcanoes are a DRRMD layer. */
+.disaster-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; padding: 14px; background: #0d0d0c; border: 1px solid #36332f; border-radius: var(--radius); }
+.disaster-legend .panel-kicker, .disaster-legend .weather-legend-meta { grid-column: 1 / -1; }
+.disaster-chip { width: 18px; height: 10px; display: inline-block; border: 1px solid rgba(255,255,255,.35); }
+.disaster-chip--clear { background: #3f4b52; } .disaster-chip--watch { background: #facc15; } .disaster-chip--warning { background: #f97316; } .disaster-chip--critical { background: #ef4444; }
+
 .signal-legend {
   background: rgba(255, 255, 255, 0.86);
   border-color: var(--line);
@@ -2074,6 +2104,39 @@ body[data-mode="outages"] .outage-footer {
 
 .weather-layer-button--rainfall { width: 42px; min-width: 42px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: rgba(37, 99, 235, 0.16); }
 .weather-layer-button--rainfall:hover, .weather-layer-button--rainfall.is-active { background: #2563eb; color: #eff6ff; }
+
+.volcano-source-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; margin-top: 7px; color: var(--muted); font: 600 9px/1.2 var(--font-mono); }
+.volcano-source-legend span { display: flex; align-items: center; gap: 5px; }
+.volcano-legend-icon { width: 24px; height: 24px; flex: 0 0 auto; display: block; object-fit: contain; border: 2px solid #fff; border-radius: 3px; background: #f97316; }
+.volcano-legend-icon--phivolcs { background: #facc15; }
+.volcano-legend-icon--green { background: #22c55e; }
+.volcano-legend-icon--orange { background: #f97316; }
+.volcano-legend-icon--red { background: #ef4444; }
+.phivolcs-volcano-icon { width: 24px !important; height: 28px !important; background: transparent; }
+.phivolcs-volcano-icon img { display: block; width: 34px; height: 34px; object-fit: contain; border: 2px solid #facc15; border-radius: 3px; background: #facc15; box-shadow: 0 3px 9px rgba(0,0,0,.65); }
+
+.gdacs-philippines-alerts { display: grid; gap: 7px; margin: 8px 0; }
+.gdacs-alert-row { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 6px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.10); }
+.gdacs-alert-row strong, .gdacs-alert-row small { display: block; }
+.gdacs-alert-row strong { color: var(--text); font: 700 10px/1.2 var(--font-mono); }
+.gdacs-alert-row small { margin-top: 3px; color: var(--muted); font: 600 8px/1.2 var(--font-mono); }
+.gdacs-alert-icon { width: 24px; height: 24px; flex: 0 0 auto; display: block; background: #f97316; border: 1px solid #fff; border-radius: 2px; clip-path: polygon(50% 0, 100% 18%, 100% 100%, 0 100%, 0 18%); }
+.gdacs-alert-icon--green { background: #22c55e; } .gdacs-alert-icon--orange { background: #f97316; } .gdacs-alert-icon--red { background: #ef4444; }
+.gdacs-volcano-icon img { width: 40px; height: 40px; object-fit: contain; display: block; }
+
+.gdacs-volcano-icon { width: 34px !important; height: 38px !important; background: transparent; animation: gdacs-volcano-pulse 1.8s ease-in-out infinite; }
+.gdacs-volcano-icon span { position: relative; display: block; width: 30px; height: 30px; margin: 3px auto 0; border: 2px solid #fff; border-radius: 2px; background: #f97316; box-shadow: 0 3px 10px rgba(0,0,0,.65); }
+.gdacs-volcano-icon span::before { content: ""; position: absolute; left: 5px; bottom: 5px; width: 17px; height: 15px; background: #fff; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.gdacs-volcano-icon span::after { content: ""; position: absolute; left: 11px; top: 3px; width: 8px; height: 8px; background: #fff; border-radius: 50% 50% 45% 45%; box-shadow: 5px 4px 0 -2px #fff; }
+.gdacs-level-green span { background: #22c55e !important; }
+.gdacs-level-orange span { background: #f97316 !important; }
+.gdacs-level-red span { background: #ef4444 !important; }
+@keyframes gdacs-volcano-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+.volcano-marker-toggle { display: flex; align-items: center; gap: 7px; grid-column: 1 / -1; margin: 4px 0 8px; color: var(--text); font: 600 10px/1.3 var(--font-mono); cursor: pointer; }
+.volcano-marker-toggle input { accent-color: #ef4444; }
+.fault-line-toggle input { accent-color: #ff5b3d; }
+.fault-line-source { color: #ff9b87; }
 
 .weather-layer-button {
   min-width: 0;
