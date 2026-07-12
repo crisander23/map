@@ -26,6 +26,7 @@ const state = {
   selectionPulse: 0,
   viewAnimation: 0,
   weatherSelectionPulse: 0,
+  weatherSelectionAnimation: 0,
   weatherLayer: "tcws",
   temperatureByFeature: new Map(),
   temperatureUpdatedAt: "",
@@ -2815,10 +2816,71 @@ function setWeatherSelectionClass(feature, selected) {
     if (selected) {
       element.classList.remove("weather-selected-path");
       void element.getBoundingClientRect();
+      setWeatherSelectionLift(feature, state.weatherSelectionPulse);
+    } else {
+      element.style.removeProperty("--weather-lift-y");
+      element.style.removeProperty("--weather-scale");
+      element.style.removeProperty("--weather-skew");
     }
 
     element.classList.toggle("weather-selected-path", selected);
   });
+}
+
+function setWeatherSelectionLift(feature, progress) {
+  const layer = state.windy.layers.get(feature.id);
+
+  if (!layer) {
+    return;
+  }
+
+  const eased = Math.max(0, Math.min(1, progress));
+  layer.eachLayer((path) => {
+    const element = path.getElement?.() || path._path;
+
+    if (!element) {
+      return;
+    }
+
+    element.style.setProperty(
+      "--weather-lift-y",
+      `${(-7 - 9 * eased).toFixed(2)}px`
+    );
+    element.style.setProperty(
+      "--weather-scale",
+      (1.004 + 0.014 * eased).toFixed(4)
+    );
+    element.style.setProperty(
+      "--weather-skew",
+      `${(-0.35 - 0.8 * eased).toFixed(2)}deg`
+    );
+  });
+}
+
+function animateWeatherSelection(feature) {
+  const animationId = ++state.weatherSelectionAnimation;
+  const startedAt = performance.now();
+  const duration = 820;
+
+  function frame(now) {
+    if (
+      animationId !== state.weatherSelectionAnimation ||
+      state.selected?.id !== feature.id
+    ) {
+      return;
+    }
+
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    state.weatherSelectionPulse = eased;
+    setWeatherSelectionLift(feature, eased);
+
+    if (progress < 1) {
+      requestAnimationFrame(frame);
+    }
+  }
+
+  requestAnimationFrame(frame);
 }
 function refreshWindyCoverage() {
   if (!state.windy.initialized) {
@@ -2955,10 +3017,12 @@ function selectWeatherFeature(feature) {
   }
 
   state.selected = feature;
+  state.weatherSelectionPulse = 0;
   state.hovered = null;
   els.tooltip.hidden = true;
   setDetails(feature);
   refreshWindyCoverage();
+  animateWeatherSelection(feature);
   loadFeatureTemperature(feature);
 
   const bbox = feature.b;
@@ -3149,6 +3213,8 @@ function resetMapSelection() {
     ec: "",
   };
   state.selected = null;
+  state.weatherSelectionAnimation += 1;
+  state.weatherSelectionPulse = 0;
   state.selectionLift = 0;
   state.selectionPulse = 0;
   state.hovered = null;

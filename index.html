@@ -6,7 +6,7 @@
     <title>NEA DDCC Map</title>
     <link rel="stylesheet" href="styles.css?v=nea-sidebar-2" />
   </head>
-  <body class="sidebar-collapsed" data-theme="dark">
+  <body class="sidebar-collapsed" data-theme="dark" data-mode="ec">
     <div id="splashScreen" class="splash-screen" role="status" aria-live="polite">
       <div class="splash-screen__grid" aria-hidden="true"></div>
       <div class="splash-screen__content">
@@ -191,7 +191,10 @@
         <aside id="detailPanel" class="detail-panel hud-corners" aria-live="polite" aria-label="Selected EC details" hidden>
           <div class="detail-panel__header">
             <div class="detail-panel__identity">
-              <span class="detail-panel__eyebrow">Live EC selection</span>
+              <div class="detail-panel__eyebrow-row">
+                <span class="detail-panel__eyebrow">Selected cooperative</span>
+                <span id="detailStatusTag" class="detail-panel__status-tag">ONLINE</span>
+              </div>
               <strong id="detailEc">--</strong>
               <span id="detailMode" class="detail-panel__mode">EC coverage area</span>
             </div>
@@ -202,7 +205,6 @@
           <div class="detail-panel__status">
             <span class="detail-panel__status-dot" aria-hidden="true"></span>
             <span id="detailStatus">--</span>
-            <span id="detailStatusTag" class="detail-panel__status-tag">ONLINE</span>
           </div>
           <div class="detail-panel__metrics">
             <div class="detail-panel__metric detail-panel__metric--signal">
