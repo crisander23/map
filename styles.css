@@ -2212,3 +2212,87 @@ body:not([data-mode="weather"]) #weatherLayerSwitch {
 }.weather-chip--flood-moderate { background: #facc15; }
 .weather-chip--flood-severe { background: #f97316; }
 .weather-chip--flood-extreme { background: #ef4444; }
+
+.earthquake-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  margin-top: 8px;
+  color: var(--muted);
+  font: 600 9px/1.2 var(--font-mono);
+}
+.earthquake-legend span { display: flex; align-items: center; gap: 6px; }
+.earthquake-dot { width: 11px; height: 11px; display: inline-block; border-radius: 50%; border: 1px solid rgba(255,255,255,.85); }
+.earthquake-dot--latest { background: #ef4444; box-shadow: 0 0 0 3px rgba(248,113,113,.25); }
+.earthquake-dot--major { background: #f97316; }
+.earthquake-dot--moderate { background: #facc15; }
+.earthquake-dot--minor { background: #38bdf8; }
+.phivolcs-earthquake-icon { background: transparent; border: 0; }
+.phivolcs-earthquake-icon span { display: block; width: 12px; height: 12px; margin: 8px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 7px rgba(0,0,0,.75); }
+.phivolcs-earthquake-icon--latest span { width: 18px; height: 18px; margin: 5px; background: #ef4444; box-shadow: 0 0 0 5px rgba(248,113,113,.28), 0 2px 8px rgba(0,0,0,.8); }
+.phivolcs-earthquake-icon--major span { width: 16px; height: 16px; margin: 6px; background: #f97316; }
+.phivolcs-earthquake-icon--moderate span { background: #facc15; }
+.phivolcs-earthquake-icon--minor span { width: 8px; height: 8px; margin: 10px; background: #38bdf8; }
+.earthquake-popup-wrap .leaflet-popup-content-wrapper { background: #111615; color: #eef5f1; border: 1px solid #39443f; }
+.earthquake-popup-wrap .leaflet-popup-tip { background: #111615; }
+.earthquake-popup { display: grid; gap: 5px; min-width: 205px; font: 600 11px/1.35 var(--font-mono); }
+.earthquake-popup strong { color: #facc15; font-size: 12px; }
+.earthquake-popup span { color: #c3cfca; }
+.earthquake-popup a { color: #67e8f9; }
+.phivolcs-earthquake-icon { background: transparent; border: 0; }
+.phivolcs-earthquake-icon img { display: block; width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 3px 5px rgba(0,0,0,.8)); }
+.phivolcs-earthquake-icon--latest img { width: 52px; height: 52px; margin: -6px; animation: earthquake-marker-pulse 1.2s ease-in-out infinite; }
+.phivolcs-earthquake-icon--major img { width: 46px; height: 46px; margin: -3px; }
+.phivolcs-earthquake-icon--moderate img { width: 42px; height: 42px; margin: -1px; }
+.phivolcs-earthquake-icon--minor img { width: 34px; height: 34px; margin: 3px; }
+@keyframes earthquake-marker-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+/* Earthquake marker colors mirror the sidebar legend. */
+.phivolcs-earthquake-icon { border: 2px solid #fff; border-radius: 5px; background: var(--quake-color, #38bdf8); box-shadow: 0 3px 8px rgba(0,0,0,.8), 0 0 0 3px var(--quake-ring, rgba(56,189,248,.28)); overflow: visible; }
+.phivolcs-earthquake-icon--latest { --quake-color: #ef4444; --quake-ring: rgba(239,68,68,.38); }
+.phivolcs-earthquake-icon--major { --quake-color: #f97316; --quake-ring: rgba(249,115,22,.34); }
+.phivolcs-earthquake-icon--moderate { --quake-color: #facc15; --quake-ring: rgba(250,204,21,.3); }
+.phivolcs-earthquake-icon--minor { --quake-color: #38bdf8; --quake-ring: rgba(56,189,248,.3); }
+.phivolcs-earthquake-icon img { position: relative; z-index: 1; display: block; width: 34px; height: 34px; margin: 5px auto; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0,0,0,.8)); }
+.phivolcs-earthquake-icon--latest img { width: 42px; height: 42px; margin: 1px auto; animation: earthquake-marker-pulse 1.2s ease-in-out infinite; }
+.phivolcs-earthquake-icon--major img { width: 38px; height: 38px; margin: 3px auto; }
+.phivolcs-earthquake-icon--moderate img { width: 34px; height: 34px; margin: 5px auto; }
+.phivolcs-earthquake-icon--minor img { width: 28px; height: 28px; margin: 8px auto; }
+.earthquake-legend { width: 100%; max-width: 280px; grid-template-columns: minmax(112px, 1fr) minmax(112px, 1fr); column-gap: 16px; row-gap: 7px; padding: 2px 0; }
+.earthquake-legend span { white-space: nowrap; }
+/* Simple earthquake marker: one colored square, matching the volcano marker treatment. */
+.phivolcs-earthquake-icon { width: 38px !important; height: 38px !important; background: transparent !important; border: 0 !important; box-shadow: none !important; overflow: visible; }
+.phivolcs-earthquake-icon span { display: block; width: 34px; height: 34px; margin: 2px; border: 2px solid #fff; border-radius: 3px; background: var(--quake-color, #38bdf8); box-shadow: 0 3px 8px rgba(0,0,0,.72); }
+.phivolcs-earthquake-icon--latest { --quake-color: #ef4444; }
+.phivolcs-earthquake-icon--major { --quake-color: #f97316; }
+.phivolcs-earthquake-icon--moderate { --quake-color: #facc15; }
+.phivolcs-earthquake-icon--minor { --quake-color: #38bdf8; }
+.phivolcs-earthquake-icon img { display: block; width: 30px !important; height: 30px !important; margin: 0 auto !important; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+.phivolcs-earthquake-icon--latest img,
+.phivolcs-earthquake-icon--major img,
+.phivolcs-earthquake-icon--moderate img,
+.phivolcs-earthquake-icon--minor img { width: 30px !important; height: 30px !important; margin: 0 auto !important; animation: none; }
+/* Final earthquake marker: simple circle with severity color. */
+.phivolcs-earthquake-icon { width: 38px !important; height: 38px !important; background: transparent !important; border: 0 !important; box-shadow: none !important; overflow: visible; }
+.phivolcs-earthquake-icon span { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin: 2px; border: 2px solid #fff; border-radius: 50%; background: var(--quake-color, #38bdf8); box-shadow: 0 3px 8px rgba(0,0,0,.75); }
+.phivolcs-earthquake-icon--latest { --quake-color: #ef4444; }
+.phivolcs-earthquake-icon--major { --quake-color: #f97316; }
+.phivolcs-earthquake-icon--moderate { --quake-color: #facc15; }
+.phivolcs-earthquake-icon--minor { --quake-color: #38bdf8; }
+.phivolcs-earthquake-icon img,
+.phivolcs-earthquake-icon--latest img,
+.phivolcs-earthquake-icon--major img,
+.phivolcs-earthquake-icon--moderate img,
+.phivolcs-earthquake-icon--minor img { display: block; width: 28px !important; height: 28px !important; margin: 0 !important; object-fit: contain; filter: none; animation: none; }
+/* White earthquake glyph on a severity-colored circle. */
+.phivolcs-earthquake-icon span { background: var(--quake-color, #38bdf8); }
+.phivolcs-earthquake-icon img,
+.phivolcs-earthquake-icon--latest img,
+.phivolcs-earthquake-icon--major img,
+.phivolcs-earthquake-icon--moderate img,
+.phivolcs-earthquake-icon--minor img { filter: brightness(0) invert(1) !important; }
+.earthquake-legend .earthquake-legend-icon { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 14px; border: 1px solid #fff; border-radius: 50%; background: var(--quake-color); overflow: hidden; }
+.earthquake-legend-icon--latest { --quake-color: #ef4444; }
+.earthquake-legend-icon--major { --quake-color: #f97316; }
+.earthquake-legend-icon--moderate { --quake-color: #facc15; }
+.earthquake-legend-icon--minor { --quake-color: #38bdf8; }
+.earthquake-legend .earthquake-legend-icon img { width: 11px; height: 11px; object-fit: contain; filter: brightness(0) invert(1); }

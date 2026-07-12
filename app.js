@@ -44,6 +44,11 @@ const state = {
   faultLinesGeoJson: null,
   faultLinesLayer: null,
   gdacsEarthquakes: [],
+  phivolcsEarthquakes: [],
+  phivolcsEarthquakeMarkers: [],
+  phivolcsEarthquakeMarkers: [],
+  phivolcsEarthquakesUpdatedAt: "",
+  phivolcsEarthquakesVisible: true,
   filters: {
     search: "",
     province: "",
@@ -363,7 +368,12 @@ function initElements() {
     "tcwsCadence",
     "volcanoMarkersToggle",
     "phivolcsMarkersToggle",
+    "phivolcsEarthquakesToggle",
     "faultLinesToggle",
+    "volcanoSourceLegend",
+    "earthquakeLegend",
+    "volcanoSourceText",
+    "earthquakeSourceText",
     "outageLegend",
     "mapCanvas",
     "windy",
@@ -942,9 +952,9 @@ const WEATHER_LAYER_CONFIG = {
   },
   earthquake: {
     label: "Earthquake",
-    legendTitle: "GDACS Earthquakes",
+    legendTitle: "PHIVOLCS Earthquakes",
     overlay: "wind",
-    status: "GDACS earthquake layer",
+    status: "PHIVOLCS earthquake feed via HazardHunterPH",
   },
 
   temperature: {
@@ -966,6 +976,10 @@ function updateWeatherLayerControls() {
   if (els.weatherLegendTitle) {
     els.weatherLegendTitle.textContent = config.legendTitle;
   }
+  const earthquakeLegend = document.getElementById("earthquakeLegend");
+  if (earthquakeLegend) earthquakeLegend.hidden = !state.phivolcsEarthquakesVisible;
+  const earthquakeSourceText = document.getElementById("earthquakeSourceText");
+  if (earthquakeSourceText) earthquakeSourceText.hidden = !state.phivolcsEarthquakesVisible;
   document.querySelectorAll("[data-weather-legend]").forEach((legend) => {
     const active = legend.dataset.weatherLegend === state.weatherLayer;
     legend.hidden = !active;
@@ -988,6 +1002,10 @@ function weatherUpdatedText(feature = null) {
   if (state.weatherLayer === "rainfall") {
     const selectedTime = feature && state.rainfallByFeature.get(feature.id)?.time;
     return selectedTime || state.rainfallUpdatedAt || "Open-Meteo time unavailable";
+  }
+
+  if (state.weatherLayer === "earthquake") {
+    return state.phivolcsEarthquakesUpdatedAt ? formatOutageDate(state.phivolcsEarthquakesUpdatedAt) : "PHIVOLCS time unavailable";
   }
 
   return state.weather?.tcwsIssuedAt || state.weather?.issuedAt || "TCWS timestamp unavailable";
@@ -1048,7 +1066,7 @@ function plotGdacsVolcanoes() {
   if (!state.windy.map || !window.L) return;
   if (state.volcanoMarkersVisible) state.gdacsVolcanoes.filter((volcano) => /philippines/i.test(volcano.country)).forEach((volcano) => {
     const level = String(volcano.alertlevel || "Green").toLowerCase();
-    const icon = L.divIcon({ className: "gdacs-volcano-icon gdacs-level-" + level, html: "<img src=\"assets/volcano-icon.png\" alt=\"\">", iconSize: [40, 40], iconAnchor: [20, 35] });
+    const icon = L.divIcon({ className: "gdacs-volcano-icon gdacs-level-" + level, html: "<img src=\"assets/volcano-icon.png?v=volcano-original-3\" alt=\"\">", iconSize: [40, 40], iconAnchor: [20, 35] });
     const marker = L.marker([volcano.lat, volcano.lon], { icon, keyboard: false, title: volcano.name }).addTo(state.windy.map);
     marker.bindTooltip(volcano.name + " · GDACS " + volcano.alertlevel, { direction: "top", offset: [0, -18] });
     marker.on("click", (event) => { L.DomEvent.stopPropagation(event.originalEvent); selectVolcanoMarker(volcano, "GDACS"); });
@@ -1056,7 +1074,7 @@ function plotGdacsVolcanoes() {
   });
 
   if (state.phivolcsMarkersVisible) {
-    const phivolcsIcon = L.divIcon({ className: "phivolcs-volcano-icon", html: "<img src=\"assets/volcano-icon.png\" alt=\"\">", iconSize: [34, 34], iconAnchor: [17, 30] });
+    const phivolcsIcon = L.divIcon({ className: "phivolcs-volcano-icon", html: "<img src=\"assets/volcano-icon.png?v=volcano-original-3\" alt=\"\">", iconSize: [34, 34], iconAnchor: [17, 30] });
     PHIVOLCS_VOLCANOES.forEach((volcano) => {
       const marker = L.marker([volcano.lat, volcano.lon], { icon: phivolcsIcon, keyboard: false, title: "PHIVOLCS " + volcano.name }).addTo(state.windy.map);
       marker.bindTooltip("PHIVOLCS " + volcano.name + " - " + volcano.province, { direction: "top", offset: [0, -16] });
@@ -1095,6 +1113,7 @@ function setWeatherLayer(layer) {
   if (layer === "temperature" || layer === "rainfall") {
     loadTemperatureCoverage();
 }
+  plotPhivolcsEarthquakes();
 }
 function setMode(mode) {
   const modeChanged = state.mode !== mode;
@@ -1130,7 +1149,10 @@ function setMode(mode) {
     setSidebarCollapsed(true);
   }
 
-  if (mode !== "weather") clearGdacsVolcanoMarkers();
+  if (mode !== "weather") {
+    clearGdacsVolcanoMarkers();
+    clearPhivolcsEarthquakeMarkers();
+  }
   if (mode !== "weather") clearFaultLines();
 
   if (mode !== "weather" && state.windTimer) {
@@ -1150,10 +1172,6 @@ function setMode(mode) {
   if (mode === "weather") {
     initWindyMap();
     if (state.windy.initialized && state.faultLinesVisible) { loadFaultLines(); }
-  }
-
-  if (mode === "disaster") {
-    loadGdacsVolcanoes();
   }
 
   els.modeEc?.classList.toggle(
@@ -2164,6 +2182,21 @@ function ecScopeForVolcano(volcano) {
   return { features: nearest, exact: false };
 }
 
+function selectEarthquakeMarker(event) {
+  state.selected = {
+    id: "earthquake:" + event.dateTime + ":" + event.lat + ":" + event.lon,
+    isEarthquake: true,
+    earthquake: event,
+    b: [event.lon - 0.1, event.lat - 0.1, event.lon + 0.1, event.lat + 0.1],
+  };
+  state.hovered = null;
+  state.weatherSelectionAnimation += 1;
+  if (els.tooltip) els.tooltip.hidden = true;
+  setDetails(state.selected);
+  if (state.windy.map) {
+    state.windy.map.flyTo([event.lat, event.lon], Math.max(state.windy.map.getZoom(), 8), { animate: true, duration: 0.7 });
+  }
+}
 function selectVolcanoMarker(volcano, source) {
   state.selected = {
     id: "volcano:" + source + ":" + volcano.name + ":" + volcano.lat + ":" + volcano.lon,
@@ -2448,6 +2481,41 @@ function setVolcanoDetails(selection) {
   els.detailSource.textContent = selection.volcanoSource === "GDACS" ? source : "PHIVOLCS active volcano reference";
   els.detailUpdated.textContent = selection.volcanoSource === "GDACS" ? (state.gdacsVolcanoesUpdatedAt ? formatOutageDate(state.gdacsVolcanoesUpdatedAt) : "Feed time unavailable") : "PHIVOLCS reference inventory";
 }
+function setEarthquakeDetails(selection) {
+  const event = selection.earthquake || {};
+  const scope = ecScopeForVolcano(event);
+  const scopeNames = scope.features.map((feature) => feature.e).filter(Boolean);
+  const magnitude = Number(event.magnitude);
+  const magnitudeLabel = Number.isFinite(magnitude) ? "M" + magnitude.toFixed(1) : "Unknown";
+  const accent = magnitude >= 4 ? "#f97316" : magnitude >= 3 ? "#facc15" : "#38bdf8";
+
+  document.body.classList.add("detail-dock-open");
+  els.detailPanel.hidden = false;
+  els.detailPanel.style.setProperty("--selected-color", accent);
+  els.detailPanel.classList.remove("is-open");
+  void els.detailPanel.offsetWidth;
+  els.detailPanel.classList.add("is-open");
+  resizeCanvas();
+  positionDetailPanel(selection);
+  hidePet();
+
+  els.detailEyebrow.textContent = "EARTHQUAKE / EC SCOPE";
+  els.detailEc.textContent = magnitudeLabel;
+  els.detailMode.textContent = "PHIVOLCS earthquake event";
+  els.detailStatusTag.textContent = event.latest ? "LATEST" : "EVENT";
+  els.detailStatusTag.classList.toggle("is-alert", event.latest || magnitude >= 4);
+  els.detailStatus.textContent = event.latest ? "Latest reported event" : "Reported seismic event";
+  els.detailSignalLabel.textContent = "Magnitude";
+  els.detailSignal.textContent = magnitudeLabel;
+  els.detailSignalHint.textContent = "Depth " + (Number.isFinite(Number(event.depth)) ? event.depth + " km" : "Unavailable");
+  els.detailProvinceCountLabel.textContent = "EC scope";
+  els.detailProvinceCount.textContent = String(scopeNames.length);
+  els.detailProvinceCountHint.textContent = scope.exact ? "cooperative(s) containing point" : "nearest cooperative(s)";
+  els.detailProvinceLabel.textContent = "Location / electric cooperative";
+  els.detailProvince.textContent = [event.location || "Philippine Seismic Network event", scopeNames.length ? "EC: " + scopeNames.join(" · ") : "No named EC within mapped scope"].join(" · ");
+  els.detailSource.textContent = "PHIVOLCS Philippine Seismic Network via HazardHunterPH";
+  els.detailUpdated.textContent = event.dateTime || "Event time unavailable";
+}
 function setDetails(
   feature
 ) {
@@ -2513,6 +2581,11 @@ function setDetails(
 
   if (feature?.isVolcano) {
     setVolcanoDetails(feature);
+    return;
+  }
+
+  if (feature?.isEarthquake) {
+    setEarthquakeDetails(feature);
     return;
   }
 
@@ -2793,7 +2866,7 @@ function weatherMetricForFeature(feature) {
 
 function weatherPaletteForFeature(feature) {
   if (state.weatherLayer === "volcano") return signalPalette[gdacsEventSeverityForFeature(feature, state.gdacsVolcanoes)] || signalPalette[0];
-  if (state.weatherLayer === "earthquake") return signalPalette[gdacsEventSeverityForFeature(feature, state.gdacsEarthquakes)] || signalPalette[0];
+  if (state.weatherLayer === "earthquake") return signalPalette[gdacsEventSeverityForFeature(feature, state.phivolcsEarthquakes)] || signalPalette[0];
   if (state.weatherLayer === "tcws") {
     const signal = signalForFeature(feature);
     return signalPalette[signal] || signalPalette[0];
@@ -3186,30 +3259,76 @@ function refreshWindyCoverage() {
   addWindyLabels();
 }
 
-async function loadGdacsVolcanoes() {
+function clearPhivolcsEarthquakeMarkers() {
+  state.phivolcsEarthquakeMarkers.forEach((marker) => marker.remove());
+  state.phivolcsEarthquakeMarkers = [];
+}
+
+function earthquakeMarkerClass(event) {
+  if (event.latest) return " earthquake-marker--latest";
+  if (event.magnitude >= 4) return " earthquake-marker--major";
+  if (event.magnitude >= 3) return " earthquake-marker--moderate";
+  return " earthquake-marker--minor";
+}
+
+function plotPhivolcsEarthquakes() {
+  clearPhivolcsEarthquakeMarkers();
+  if (state.mode !== "weather" || !state.phivolcsEarthquakesVisible || !state.windy.map || !window.L) return;
+
+  state.phivolcsEarthquakes.forEach((event) => {
+    const icon = L.divIcon({
+      className: "phivolcs-earthquake-icon" + earthquakeMarkerClass(event),
+      html: "<span><img src=\"assets/earthquake-icon.png?v=earthquake-card-7\" alt=\"\"></span>",
+      iconSize: [38, 38],
+      iconAnchor: [19, 19],
+    });
+    const marker = L.marker([event.lat, event.lon], { icon, keyboard: false, title: event.location }).addTo(state.windy.map);
+    const latestText = event.latest ? " · Latest event" : "";
+    marker.bindPopup(
+      "<div class=\"earthquake-popup\"><strong>PHIVOLCS earthquake</strong>" +
+      "<span>" + escapeLabelText(event.dateTime) + latestText + "</span>" +
+      "<span>" + escapeLabelText(event.location) + "</span>" +
+      "<span>Magnitude " + event.magnitude.toFixed(1) + " · Depth " + event.depth + " km</span>" +
+      "<a target=\"_blank\" rel=\"noopener\" href=\"" + escapeLabelText(event.link) + "\">Open PHIVOLCS bulletin</a></div>",
+      { className: "earthquake-popup-wrap" }
+    );
+    const earthquakeEvent = event;
+    marker.on("click", (event) => { L.DomEvent.stopPropagation(event.originalEvent); selectEarthquakeMarker(earthquakeEvent); });
+    state.phivolcsEarthquakeMarkers.push(marker);
+  });
+}
+
+async function loadPhivolcsEarthquakes() {
   try {
-    const response = await fetch("https://www.gdacs.org/gdacsapi/api/events/geteventlist/map?eventtypes=VO", { cache: "no-store" });
-    if (!response.ok) throw new Error("GDACS request failed: " + response.status);
+    const response = await fetch("/api/phivolcs-earthquakes", { cache: "no-store" });
+    if (!response.ok) throw new Error("PHIVOLCS earthquake request failed: " + response.status);
     const payload = await response.json();
-    state.gdacsVolcanoes = (payload.features || []).filter((feature) => feature.properties?.iscurrent && feature.geometry?.coordinates).map((feature) => ({ name: feature.properties.name || "Volcanic eruption", country: feature.properties.country || "", alertlevel: feature.properties.alertlevel || "Green", lat: Number(feature.geometry.coordinates[1]), lon: Number(feature.geometry.coordinates[0]) })).filter((volcano) => Number.isFinite(volcano.lat) && Number.isFinite(volcano.lon));
-    state.gdacsVolcanoesUpdatedAt = new Date().toISOString();
-    updateGdacsVolcanoStatus();
-    plotGdacsVolcanoes();
+    const baseUrl = "https://earthquake.phivolcs.dost.gov.ph/";
+    state.phivolcsEarthquakes = (payload.data || []).map((feature) => {
+      const properties = feature.properties || {};
+      const coordinates = feature.geometry?.coordinates || [];
+      const link = properties.link && properties.link !== "empty" ? baseUrl + String(properties.link).replace(/\\/g, "/") : baseUrl;
+      return {
+        dateTime: properties.date_time || "Unknown time",
+        magnitude: Number(properties.magnitude),
+        depth: Number(properties.depth),
+        location: properties.location || "Philippine Seismic Network event",
+        latest: properties.latest === true,
+        link,
+        lat: Number(coordinates[1]),
+        lon: Number(coordinates[0]),
+      };
+    }).filter((event) => Number.isFinite(event.lat) && Number.isFinite(event.lon) && Number.isFinite(event.magnitude));
+    state.gdacsEarthquakes = state.phivolcsEarthquakes;
+    state.phivolcsEarthquakesUpdatedAt = new Date().toISOString();
+    plotPhivolcsEarthquakes();
     scheduleDraw();
   } catch (error) {
-    console.warn("Could not load GDACS volcanic eruptions", error);
-    updateGdacsVolcanoStatus();
+    console.warn("Could not load PHIVOLCS earthquakes", error);
+    state.phivolcsEarthquakes = [];
+    state.gdacsEarthquakes = [];
+    clearPhivolcsEarthquakeMarkers();
   }
-}
-async function loadGdacsEarthquakes() {
-  try {
-    const response = await fetch("https://www.gdacs.org/gdacsapi/api/events/geteventlist/map?eventtypes=EQ", { cache: "no-store" });
-    if (!response.ok) throw new Error("GDACS earthquake request failed: " + response.status);
-    const payload = await response.json();
-    state.gdacsEarthquakes = (payload.features || []).filter((feature) => feature.properties?.iscurrent && feature.geometry?.coordinates).map((feature) => ({ type: "EQ", name: feature.properties.name || "Earthquake", alertlevel: feature.properties.alertlevel || "Green", lat: Number(feature.geometry.coordinates[1]), lon: Number(feature.geometry.coordinates[0]) })).filter((event) => Number.isFinite(event.lat) && Number.isFinite(event.lon));
-    state.gdacsEarthquakesUpdatedAt = new Date().toISOString();
-    scheduleDraw();
-  } catch (error) { console.warn("Could not load GDACS earthquakes", error); }
 }
 async function loadTemperatureCoverage() {
   const features = state.data?.features?.filter(isSelectableFeature) || [];
@@ -3484,6 +3603,7 @@ function initWindyMap() {
       refreshWindyCoverage();
       fitWindyMap(false);
       plotGdacsVolcanoes();
+      plotPhivolcsEarthquakes();
       if (state.faultLinesVisible) loadFaultLines();
       els.weatherStatus.textContent =
         "Windy forecast active - TCWS layer retained.";
@@ -3780,6 +3900,7 @@ function bindEvents() {
 
   els.volcanoMarkersToggle?.addEventListener("change", (event) => { state.volcanoMarkersVisible = event.target.checked; plotGdacsVolcanoes(); });
   els.phivolcsMarkersToggle?.addEventListener("change", (event) => { state.phivolcsMarkersVisible = event.target.checked; plotGdacsVolcanoes(); });
+  els.phivolcsEarthquakesToggle?.addEventListener("change", (event) => { state.phivolcsEarthquakesVisible = event.target.checked; updateWeatherLayerControls(); plotPhivolcsEarthquakes(); });
   els.faultLinesToggle?.addEventListener("change", (event) => setFaultLinesVisible(event.target.checked));
 
   els.modeEc?.addEventListener(
@@ -4210,6 +4331,7 @@ async function loadData() {
 
   await loadWeatherSignals();
   await loadOutages();
+  await loadPhivolcsEarthquakes();
 
   populateControls();
 

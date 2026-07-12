@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NEA DDCC Map</title>
-    <link rel="stylesheet" href="styles.css?v=nea-sidebar-2" />
+    <link rel="stylesheet" href="styles.css?v=earthquake-sidebar-8" />
   </head>
   <body class="sidebar-collapsed" data-theme="dark" data-mode="ec">
     <div id="splashScreen" class="splash-screen" role="status" aria-live="polite">
@@ -83,12 +83,15 @@
                 <button type="button" class="weather-layer-button" data-weather-layer="temperature">Temp</button>
                 <button type="button" class="weather-layer-button" data-weather-layer="rainfall">Rain</button>
               </div>
-              <label class="volcano-marker-toggle"><input id="volcanoMarkersToggle" type="checkbox" checked /> <span>Show GDACS active alerts</span></label>
+
               <label class="volcano-marker-toggle"><input id="phivolcsMarkersToggle" type="checkbox" /> <span>Show active volcanoes</span></label>
+              <label class="volcano-marker-toggle"><input id="phivolcsEarthquakesToggle" type="checkbox" checked /> <span>Show live earthquakes</span></label>
               <label class="volcano-marker-toggle fault-line-toggle"><input id="faultLinesToggle" type="checkbox" checked /> <span>Show Philippine fault lines</span></label>
-              <div class="volcano-source-legend"><span><img class="volcano-legend-icon volcano-legend-icon--phivolcs" src="assets/volcano-icon.png" alt="" />Active volcanoes</span><span><img class="volcano-legend-icon volcano-legend-icon--green" src="assets/volcano-icon.png" alt="" />GDACS Green</span><span><img class="volcano-legend-icon volcano-legend-icon--orange" src="assets/volcano-icon.png" alt="" />GDACS Orange</span><span><img class="volcano-legend-icon volcano-legend-icon--red" src="assets/volcano-icon.png" alt="" />GDACS Red</span></div>
-              <div id="gdacsPhilippinesAlerts" class="gdacs-philippines-alerts"><span class="weather-legend-meta">Loading GDACS Philippines alerts</span></div>
-              <small class="weather-legend-meta">Source: GDACS current volcanic eruption feed</small>
+              <div id="volcanoSourceLegend" class="volcano-source-legend"><span><img class="volcano-legend-icon volcano-legend-icon--phivolcs" src="assets/volcano-icon.png?v=volcano-original-3" alt="" />Active volcanoes</span></div>
+              <div id="earthquakeLegend" class="earthquake-legend"><span><i class="earthquake-legend-icon earthquake-legend-icon--latest"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>Latest event</span><span><i class="earthquake-legend-icon earthquake-legend-icon--major"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>M4.0+</span><span><i class="earthquake-legend-icon earthquake-legend-icon--moderate"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>M3.0-3.9</span><span><i class="earthquake-legend-icon earthquake-legend-icon--minor"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>Below M3.0</span></div>
+
+              <small id="volcanoSourceText" class="weather-legend-meta">Source: PHIVOLCS active volcano reference</small>
+              <small id="earthquakeSourceText" class="weather-legend-meta">Source: PHIVOLCS Philippine Seismic Network via HazardHunterPH</small>
               <small class="weather-legend-meta fault-line-source">Fault lines: DOST-PHIVOLCS Active Fault Map</small>
             </section>
           </section>
