@@ -2305,3 +2305,23 @@ body[data-theme="light"][data-mode="weather"] .signal-legend,
 body[data-theme="light"][data-mode="weather"] .mode-panel,
 body[data-theme="light"][data-mode="weather"] .controls { background: rgba(255,255,255,.92) !important; border-color: var(--line); color: var(--text); }
 body[data-theme="light"][data-mode="weather"] .signal-legend .legend-row { color: var(--text); }
+.mode-switch { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.scada-chip { width: 14px; height: 8px; display: inline-block; border: 1px solid rgba(255,255,255,.35); }
+.scada-chip--critical { background: #ef4444; }
+.scada-chip--warning { background: #f97316; }
+.scada-chip--normal { background: #22c55e; }
+body:not([data-mode="scada"]) #scadaLegend { display: none; }
+body[data-mode="scada"] .coord-bar { left: auto; right: 16px; bottom: 16px; padding: 0; background: transparent; border: 0; backdrop-filter: none; }
+body[data-mode="scada"] .coord-readout { display: none; }
+body[data-mode="scada"] .scada-footer { margin: 0; padding: 0; border: 0; gap: 12px; }
+.scada-sidebar-legend { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.scada-sidebar-legend .panel-kicker { margin-bottom: 7px; }
+.scada-sidebar-legend__items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; color: var(--muted); font: 600 9px/1.2 var(--font-mono); }
+.scada-sidebar-legend__items span { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.scada-sidebar-legend__items { grid-template-columns: repeat(3, 1fr); }
+.scada-chip--level-5 { background: #7f1d1d; }
+.scada-chip--level-4 { background: #ef4444; }
+.scada-chip--level-3 { background: #f97316; }
+.scada-chip--level-2 { background: #facc15; }
+.scada-chip--level-1 { background: #84cc16; }
+.scada-chip--level-0 { background: #22c55e; }

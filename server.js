@@ -31,6 +31,33 @@ async function earthquakeProxy(res) {
   }
 }
 
+async function scadaProxy(res) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+    const response = await fetch("http://26.8.239.167:3010/api/dashboard/retrieve-scada-alarms", { cache: "no-store", signal: controller.signal });
+    clearTimeout(timer);
+    if (!response.ok) throw new Error("SCADA request failed: " + response.status);
+    const payload = await response.json();
+    const rows = Array.isArray(payload) ? payload : (payload.data || payload.records || payload.results || []);
+    const latestByEc = new Map();
+    rows.forEach((row) => {
+      const ec = row?.EC_CODE || row?.ec_code || row?.ecCode || row?.ECCODE;
+      if (!ec) return;
+      const previous = latestByEc.get(String(ec).toUpperCase());
+      const currentTime = new Date(row.RECORD_TIMESTAMP || row.time || 0).getTime();
+      const previousTime = new Date(previous?.RECORD_TIMESTAMP || previous?.time || 0).getTime();
+      if (!previous || currentTime >= previousTime) latestByEc.set(String(ec).toUpperCase(), row);
+    });
+    const latestLevel45 = Array.from(latestByEc.values()).filter((row) => {
+      const level = Number(row?.level ?? row?.LEVEL ?? row?.scada_level ?? row?.alarm_level);
+      return level === 4 || level === 5;
+    });
+    sendJson(res, 200, latestLevel45);
+  } catch (error) {
+    sendJson(res, 502, { success: false, message: error.name === "AbortError" ? "SCADA request timed out" : error.message, data: [] });
+  }
+}
 function serveStatic(req, res) {
   const requested = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
   const relative = requested === "/" ? "index.html" : requested.replace(/^\/+/, "");
@@ -46,5 +73,6 @@ function serveStatic(req, res) {
 http.createServer((req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" }); res.end(); return; }
   if (req.method === "GET" && req.url.split("?")[0] === "/api/phivolcs-earthquakes") { earthquakeProxy(res); return; }
+  if (req.method === "GET" && req.url.split("?")[0] === "/api/scada-alarms") { scadaProxy(res); return; }
   serveStatic(req, res);
 }).listen(port, "127.0.0.1", () => console.log("Map server listening on http://127.0.0.1:" + port));

@@ -3,6 +3,7 @@ const state = {
   weather: null,
   mode: "ec",
   labelsVisible: true,
+  scada: { records: [], byEc: new Map(), loadedAt: null, error: null },
   outages: {
     records: [],
     byEc: new Map(),
@@ -88,6 +89,7 @@ const PET_GUIDES = {
     title: "What is Weather mode?",
     text: "See weather-related signals and TCWS coverage so you can understand conditions affecting each area.",
   },
+  scada: { records: [], byEc: new Map(), loadedAt: null, error: null },
   outages: {
     title: "What is Outage mode?",
     text: "Track the latest interruption report per EC. Colors show ongoing, restored, or no recent report.",
@@ -385,6 +387,8 @@ function initElements() {
     "modeEc",
     "modeWeather",
     "modeOutages",
+    "modeScada",
+    "scadaLegend",
     "weatherStatus",
     "weatherLayerSwitch",
     "zoomOutButton",
@@ -632,6 +636,58 @@ function prepareOutages(records) {
   state.outages.byEc = byEc;
   state.outages.loadedAt = new Date();
   state.outages.error = null;
+}
+
+function normalizeScadaEc(value) {
+  return normalizeOutageEc(value);
+}
+
+function scadaForFeature(feature) {
+  return state.scada.byEc.get(normalizeScadaEc(feature?.e)) || null;
+}
+
+function scadaStatusKey(record) {
+  const level = Number(record?.level ?? record?.LEVEL ?? record?.scada_level ?? record?.alarm_level);
+  if (level >= 5) return "level-5";
+  if (level === 4) return "level-4";
+  const value = String(record?.status || record?.severity || record?.alarm_status || "").toLowerCase();
+  if (/critical|emergency|trip|fault|active|alarm/.test(value)) return "critical";
+  if (/warning|warn|medium|caution/.test(value)) return "warning";
+  return "normal";
+}
+
+function scadaStyleFor(record) {
+  if (!record) return { fill: "#59636a", stroke: "#9aa5aa", label: "No data" };
+  const styles = {
+    "level-5": { fill: "#7f1d1d", stroke: "#fecaca", label: "Level 5" },
+    "level-4": { fill: "#ef4444", stroke: "#fee2e2", label: "Level 4" },
+    critical: { fill: "#ef4444", stroke: "#fecaca", label: "Critical" },
+    warning: { fill: "#f97316", stroke: "#fed7aa", label: "Warning" },
+    normal: { fill: "#22c55e", stroke: "#bbf7d0", label: "Normal" },
+  };
+  return styles[scadaStatusKey(record)] || { fill: "#64748b", stroke: "#cbd5e1", label: "No data" };
+}
+
+function prepareScada(payload) {
+  const records = (Array.isArray(payload) ? payload : (payload?.data || payload?.records || payload?.results || [])).filter((record) => {
+    const level = Number(record?.level ?? record?.LEVEL ?? record?.scada_level ?? record?.alarm_level);
+    return level === 4 || level === 5;
+  });
+  const byEc = new Map();
+  records.forEach((raw) => {
+    const record = raw || {};
+    const ec = record.EC_CODE || record.ec_code || record.ecCode || record.ECCODE || record.cooperative || record.cooperative_code || record.ec || record.name;
+    const key = normalizeScadaEc(ec);
+    if (!key) return;
+    const normalized = { ...record, EC_CODE: ec, status: record.status || record.severity || record.alarm_status || record.state || "", alarm: record.text || record.alarm || record.message || record.description || record.alarm_name || "SCADA alarm", timestamp: record.RECORD_TIMESTAMP || record.timestamp || record.time || record.created_at || record.alarm_time || record.date_time || record.updated_at || "", source: record.DATA_SOURCE || record.source || "SCADA alarms API" };
+    const entry = byEc.get(key) || { records: [], latest: null, count: 0 };
+    entry.records.push(normalized); entry.count += 1;
+    const currentTime = new Date(normalized.timestamp || 0).getTime();
+    const latestTime = new Date(entry.latest?.timestamp || 0).getTime();
+    if (!entry.latest || currentTime >= latestTime) entry.latest = normalized;
+    byEc.set(key, entry);
+  });
+  state.scada.records = records; state.scada.byEc = byEc; state.scada.loadedAt = new Date(); state.scada.error = null;
 }
 
 function worldSize() {
@@ -1143,6 +1199,7 @@ function setMode(mode) {
   if (els.outageLegend) {
     els.outageLegend.hidden = mode !== "outages";
   }
+  if (els.scadaLegend) els.scadaLegend.hidden = mode !== "scada";
 
 
   if (modeChanged) {
@@ -1161,6 +1218,10 @@ function setMode(mode) {
   }
   if (els.weatherStatus && mode === "disaster") {
     els.weatherStatus.textContent = "GDACS volcanic eruption feed";
+  } else if (els.weatherStatus && mode === "scada") {
+    els.weatherStatus.textContent = state.scada.error
+      ? "SCADA feed unavailable - no alarm data loaded."
+      : `${formatNumber(state.scada.records.length)} SCADA alarms loaded · latest alarm per EC shown.`;
   } else if (els.weatherStatus && mode === "outages") {
     els.weatherStatus.textContent = state.outages.error
       ? "Outage feed unavailable - showing no recent reports."
@@ -1188,6 +1249,8 @@ function setMode(mode) {
     "is-active",
     mode === "outages"
   );
+
+  els.modeScada?.classList.toggle("is-active", mode === "scada");
 
 
   if (state.selected) {
@@ -1291,7 +1354,9 @@ function drawElevatedTile(ctx, feature) {
   const lift = Math.round(26 * progress);
   const color = state.mode === "outages"
     ? outageStyleFor(latestOutageForFeature(feature)).fill
-    : colorForEc(feature.e);
+    : state.mode === "scada"
+      ? scadaStyleFor(scadaForFeature(feature)?.latest).fill
+      : colorForEc(feature.e);
   const center = project(
     (feature.b[0] + feature.b[2]) / 2,
     (feature.b[1] + feature.b[3]) / 2
@@ -1358,7 +1423,9 @@ function drawSelectionGlow(ctx, feature) {
   );
   const color = state.mode === "outages"
     ? outageStyleFor(latestOutageForFeature(feature)).fill
-    : colorForEc(feature.e);
+    : state.mode === "scada"
+      ? scadaStyleFor(scadaForFeature(feature)?.latest).fill
+      : colorForEc(feature.e);
   const center = project(
     (feature.b[0] + feature.b[2]) / 2,
     (feature.b[1] + feature.b[3]) / 2
@@ -1712,6 +1779,13 @@ function drawPolygons(ctx) {
         dimmed ? 0.9 : unassigned ? 1 : 1.35
       );
 
+      return;
+    }
+
+    if (state.mode === "scada") {
+      const style = scadaStyleFor(scadaForFeature(feature)?.latest);
+      const selected = feature.id === selectedId;
+      drawPolygon(ctx, feature, dimmed ? "rgba(100,116,139,.24)" : withAlpha(style.fill, selected ? .84 : .62), dimmed ? "rgba(100,116,139,.32)" : style.stroke, selected ? 2.2 : 1.35);
       return;
     }
 
@@ -2516,6 +2590,37 @@ function setEarthquakeDetails(selection) {
   els.detailSource.textContent = "PHIVOLCS Philippine Seismic Network via HazardHunterPH";
   els.detailUpdated.textContent = event.dateTime || "Event time unavailable";
 }
+function setScadaDetails(feature) {
+  const report = scadaForFeature(feature);
+  const latest = report?.latest;
+  const style = scadaStyleFor(latest);
+  const details = latest || {};
+  document.body.classList.add("detail-dock-open");
+  els.detailPanel.hidden = false;
+  els.detailPanel.style.setProperty("--selected-color", style.fill);
+  els.detailPanel.classList.remove("is-open");
+  void els.detailPanel.offsetWidth;
+  els.detailPanel.classList.add("is-open");
+  resizeCanvas();
+  positionDetailPanel(feature);
+  hidePet();
+  els.detailEyebrow.textContent = "SCADA / ALARM STATUS";
+  els.detailEc.textContent = feature.e || "EC";
+  els.detailMode.textContent = "SCADA monitoring";
+  els.detailStatusTag.textContent = latest ? style.label.toUpperCase() : "NO DATA";
+  els.detailStatusTag.classList.toggle("is-alert", Boolean(latest && style.label !== "Normal"));
+  els.detailStatus.textContent = latest ? (details.alarm || "SCADA alarm reported") : "No SCADA alarm for this EC";
+  els.detailSignalLabel.textContent = "Alarm count";
+  els.detailSignal.textContent = String(report?.count || 0);
+  els.detailSignalHint.textContent = latest ? "Latest alarm shown" : "No current alarm data";
+  els.detailProvinceCountLabel.textContent = "Service area";
+  els.detailProvinceCount.textContent = String((feature.ps || [feature.p]).filter(Boolean).length);
+  els.detailProvinceCountHint.textContent = "province(s)";
+  els.detailProvinceLabel.textContent = "SCADA details";
+  els.detailProvince.textContent = [details.device || details.feeder || "", details.remarks || details.message || ""].filter(Boolean).join(" · ") || (feature.ps || [feature.p]).filter(Boolean).join(" · ") || "No additional SCADA details";
+  els.detailSource.textContent = details.source || "SCADA alarms API";
+  els.detailUpdated.textContent = details.timestamp ? formatOutageDate(details.timestamp) : "SCADA time unavailable";
+}
 function setDetails(
   feature
 ) {
@@ -2589,6 +2694,11 @@ function setDetails(
     return;
   }
 
+  if (state.mode === "scada") {
+    setScadaDetails(feature);
+    return;
+  }
+
   document.body.classList.add("detail-dock-open");
   els.detailPanel.hidden =
     false;
@@ -2632,6 +2742,8 @@ function setDetails(
       ? (signalPalette[signal] || signalPalette[0]).fill
       : isOutages
         ? outageDetailStyle.fill
+      : state.mode === "scada"
+      ? scadaStyleFor(scadaForFeature(feature)?.latest).fill
       : colorForEc(feature.e);
 
   els.detailPanel.style.setProperty(
@@ -3919,6 +4031,8 @@ function bindEvents() {
     () => setMode("outages")
   );
 
+  els.modeScada?.addEventListener("click", () => setMode("scada"));
+
 
   document.querySelectorAll("[data-weather-layer]").forEach((button) => {
     button.addEventListener("click", () => setWeatherLayer(button.dataset.weatherLayer));
@@ -4309,6 +4423,24 @@ async function loadOutages() {
   }
 }
 
+async function loadScada() {
+  try {
+    const response = await fetch("/api/scada-alarms", { cache: "no-store" });
+    if (!response.ok) throw new Error("SCADA request failed: " + response.status);
+    const payload = await response.json();
+    if (payload?.success === false) throw new Error(payload.message || "SCADA feed unavailable");
+    prepareScada(payload);
+    if (state.data) updateVisible();
+    if (state.mode === "scada" && els.weatherStatus) els.weatherStatus.textContent = `${formatNumber(state.scada.records.length)} SCADA alarms loaded · latest alarm per EC shown.`;
+  } catch (error) {
+    state.scada.records = [];
+    state.scada.byEc = new Map();
+    state.scada.loadedAt = null;
+    state.scada.error = error;
+    console.warn("Could not load SCADA alarms", error);
+    if (state.mode === "scada" && els.weatherStatus) els.weatherStatus.textContent = "SCADA feed unavailable - no alarm data loaded.";
+  }
+}
 async function loadData() {
   const response =
     await fetch(
@@ -4331,6 +4463,8 @@ async function loadData() {
 
   await loadWeatherSignals();
   await loadOutages();
+  loadScada();
+  window.setInterval(loadScada, 5 * 60 * 1000);
   await loadPhivolcsEarthquakes();
 
   populateControls();
