@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NEA DDCC Map</title>
-    <link rel="stylesheet" href="styles.css?v=scada-grid-9" />
+    <link rel="icon" type="image/png" href="assets/nea.png?v=nea-favicon-1" />
+    <link rel="apple-touch-icon" href="assets/nea.png?v=nea-favicon-1" />
+    <link rel="stylesheet" href="styles.css?v=ec-search-3" />
   </head>
   <body class="sidebar-collapsed" data-theme="dark" data-mode="ec">
     <div id="splashScreen" class="splash-screen" role="status" aria-live="polite">
@@ -41,7 +43,7 @@
           </svg>
         </div>
         <p class="splash-screen__title"><img src="assets/nea.png" alt="NEA logo" /><span>NEA DDCC MAP</span></p>
-        <p class="splash-screen__status"><span></span> Initializing national coverage</p>
+        <p id="splashStatus" class="splash-screen__status"><span></span> Initializing national coverage</p>
       </div>
     </div>
     <main class="app-shell">
@@ -84,6 +86,7 @@
                 <button type="button" class="weather-layer-button" data-weather-layer="temperature">Temp</button>
                 <button type="button" class="weather-layer-button" data-weather-layer="rainfall">Rain</button>
               </div>
+              <label class="volcano-marker-toggle windy-toggle"><input id="windyToggle" type="checkbox" checked /> <span>Show Windy weather map</span></label>
 
               <label class="volcano-marker-toggle"><input id="phivolcsMarkersToggle" type="checkbox" /> <span>Show active volcanoes</span></label>
               <label class="volcano-marker-toggle"><input id="phivolcsEarthquakesToggle" type="checkbox" checked /> <span>Show live earthquakes</span></label>
@@ -97,15 +100,12 @@
             </section>
           </section>
 
-                    <section id="scadaLegend" class="scada-sidebar-legend" aria-label="SCADA level legend" hidden>
+          <section id="scadaLegend" class="scada-sidebar-legend" aria-label="SCADA level legend" hidden>
             <span class="panel-kicker">SCADA level</span>
             <div class="scada-sidebar-legend__items"><span><i class="scada-chip scada-chip--level-5"></i>Level 5</span><span><i class="scada-chip scada-chip--level-4"></i>Level 4</span></div>
-          </section>          <section class="controls" aria-label="Filters">
-            <label>
-              Search
-              <input id="searchInput" type="search" placeholder="EC or province" autocomplete="off" />
-            </label>
+          </section>
 
+          <section class="controls" aria-label="Filters">
             <label>
               Province
               <select id="provinceSelect">
@@ -161,6 +161,14 @@
 
       <section class="map-panel" aria-label="Interactive coverage map">
         <div class="map-toolbar hud-corners">
+          <div id="ecSearchShell" class="map-toolbar__search-shell">
+            <label class="map-toolbar__search" for="searchInput">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3" /><path d="m16 16 4.5 4.5" /></svg>
+              <span class="sr-only">Search electric cooperative or province</span>
+              <input id="searchInput" class="map-toolbar__search-input" type="search" placeholder="Search electric cooperative" autocomplete="off" aria-autocomplete="list" aria-controls="ecSearchSuggestions" aria-expanded="false" />
+            </label>
+            <div id="ecSearchSuggestions" class="ec-search-suggestions" role="listbox" aria-label="Electric cooperative suggestions" hidden></div>
+          </div>
           <div class="sr-only">
             <strong id="visibleCount">Loading EC polygons...</strong>
             <span id="hintText">Drag to pan, wheel to zoom, click EC polygon to inspect</span>
@@ -185,6 +193,16 @@
             </button>
           </div>
         </div>
+        <aside id="tcwsLiveBanner" class="tcws-live-banner hud-corners" aria-live="polite" aria-label="Current PAGASA TCWS bulletin" hidden>
+          <div class="tcws-live-banner__topline">
+            <span class="tcws-live-banner__live"><i aria-hidden="true"></i> PAGASA · LIVE TCWS</span>
+            <span id="tcwsBannerFetched">Waiting for refresh</span>
+            <button id="tcwsBannerClose" class="tcws-live-banner__close" type="button" aria-label="Close TCWS banner" title="Close banner">×</button>
+          </div>
+          <strong id="tcwsBannerStorm">Current bulletin</strong>
+          <span id="tcwsBannerBulletin">Tropical Cyclone Bulletin</span>
+          <small id="tcwsBannerIssued">Issued time unavailable</small>
+        </aside>
         <div id="windy" aria-label="Windy weather forecast map" hidden></div>
         <canvas id="mapCanvas"></canvas>
         <div class="coord-bar hud-label" aria-hidden="true">
@@ -248,7 +266,7 @@
     <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
     <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
     <script src="config.js?v=windy-1"></script>
-    <script src="app.js?v=scada-selection-color-4"></script>
+    <script src="app.js?v=mode-controls-1"></script>
   </body>
 </html>
 
