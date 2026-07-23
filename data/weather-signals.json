@@ -1,8 +1,8 @@
 {
   "source": "PAGASA TCWS bulletin + PANaHON CAP General Flood Advisory",
-  "issuedAt": "2026-07-14T17:00:00+08:00",
-  "tcwsIssuedAt": "2026-07-14T17:00:00+08:00",
-  "tcwsNextAdvisoryAt": "",
+  "issuedAt": "2026-07-23T05:00:00+08:00",
+  "tcwsIssuedAt": "2026-07-23T05:00:00+08:00",
+  "tcwsNextAdvisoryAt": "2026-07-23T11:00:00+08:00",
   "tcwsUpdateCadence": "Checked every 5 minutes; PAGASA bulletin cadence varies by hazard",
   "sources": {
     "tcws": "https://pagasa.dost.gov.ph/tropical-cyclone/severe-weather-bulletin",
@@ -14,7 +14,7 @@
   "signals": {},
   "floodIssuedAt": "2026-07-11T15:37:06.266749+00:00",
   "floodAlerts": [],
-  "tcwsBulletin": "Tropical Cyclone Bulletin #3",
-  "tcwsStorm": "LPA \"Josie\"",
-  "tcwsFetchedAt": "2026-07-14T09:00:57.283Z"
+  "tcwsBulletin": "Tropical Cyclone Bulletin #2",
+  "tcwsStorm": "Tropical Depression \"Kiyapo\"",
+  "tcwsFetchedAt": "2026-07-23T01:46:51.575Z"
 }
