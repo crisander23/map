@@ -30,7 +30,6 @@ const state = {
   weatherSelectionPulse: 0,
   weatherSelectionAnimation: 0,
   weatherLayer: "tcws",
-  tcwsBannerDismissed: false,
   temperatureByFeature: new Map(),
   temperatureUpdatedAt: "",
   rainfallByFeature: new Map(),
@@ -39,9 +38,9 @@ const state = {
   gdacsVolcanoesUpdatedAt: "",
   gdacsVolcanoMarkers: [],
   phivolcsVolcanoMarkers: [],
-  volcanoMarkersVisible: true,
+  volcanoMarkersVisible: false,
   phivolcsMarkersVisible: false,
-  faultLinesVisible: true,
+  faultLinesVisible: false,
   faultLinesLoaded: false,
   faultLinesLoading: false,
   faultLinesGeoJson: null,
@@ -51,7 +50,7 @@ const state = {
   phivolcsEarthquakeMarkers: [],
   phivolcsEarthquakeMarkers: [],
   phivolcsEarthquakesUpdatedAt: "",
-  phivolcsEarthquakesVisible: true,
+  phivolcsEarthquakesVisible: false,
   filters: {
     search: "",
     province: "",
@@ -474,15 +473,7 @@ function persistMapViewState() {
 }
 
 function updateTcwsLiveBanner() {
-  if (!els.tcwsLiveBanner) return;
-  const weather = state.weather || {};
-  const hasBulletin = Boolean(weather.tcwsBulletin || weather.tcwsStorm || weather.tcwsIssuedAt);
-  els.tcwsLiveBanner.hidden = state.mode !== "weather" || !hasBulletin || state.tcwsBannerDismissed;
-  if (!hasBulletin) return;
-  if (els.tcwsBannerStorm) els.tcwsBannerStorm.textContent = weather.tcwsStorm || "No named tropical cyclone";
-  if (els.tcwsBannerBulletin) els.tcwsBannerBulletin.textContent = weather.tcwsBulletin || "Current PAGASA bulletin";
-  if (els.tcwsBannerIssued) els.tcwsBannerIssued.textContent = weather.tcwsIssuedAt ? "Issued " + formatOutageDate(weather.tcwsIssuedAt) : "Issue time unavailable";
-  if (els.tcwsBannerFetched) els.tcwsBannerFetched.textContent = weather.tcwsFetchedAt ? "Fetched " + formatOutageDate(weather.tcwsFetchedAt) : "Waiting for refresh";
+  return;
 }
 
 function signalForProvince(province) {
@@ -528,12 +519,6 @@ function initElements() {
     "weatherLegendTitle",
     "tcwsTimestamp",
     "tcwsCadence",
-    "tcwsLiveBanner",
-    "tcwsBannerClose",
-    "tcwsBannerStorm",
-    "tcwsBannerBulletin",
-    "tcwsBannerIssued",
-    "tcwsBannerFetched",
     "volcanoMarkersToggle",
     "phivolcsMarkersToggle",
     "phivolcsEarthquakesToggle",
@@ -542,6 +527,7 @@ function initElements() {
     "earthquakeLegend",
     "volcanoSourceText",
     "earthquakeSourceText",
+    "faultLineLegend",
     "outageLegend",
     "mapCanvas",
     "windy",
@@ -1018,7 +1004,7 @@ function animateCanvasToBounds() {
 function populateControls() {
   const { filters } = state.data;
 
-  filters.provinces.forEach(
+  if (els.provinceSelect) filters.provinces.forEach(
     (province) => {
       const option =
         document.createElement("option");
@@ -1032,7 +1018,7 @@ function populateControls() {
     }
   );
 
-  filters.ecs.forEach((ec) => {
+  if (els.ecSelect) filters.ecs.forEach((ec) => {
     const option =
       document.createElement("option");
 
@@ -1137,8 +1123,8 @@ function selectEcFromSearch(ec) {
   state.filters.province = "";
   state.filters.ec = ec;
   els.searchInput.value = ec;
-  els.provinceSelect.value = "";
-  els.ecSelect.value = ec;
+  if (els.provinceSelect) els.provinceSelect.value = "";
+  if (els.ecSelect) els.ecSelect.value = ec;
   hideEcSearchSuggestions();
   if (els.ecSearchShell) {
     els.ecSearchShell.hidden = true;
@@ -1344,6 +1330,11 @@ function updateWeatherLayerControls() {
   if (earthquakeLegend) earthquakeLegend.hidden = !state.phivolcsEarthquakesVisible;
   const earthquakeSourceText = document.getElementById("earthquakeSourceText");
   if (earthquakeSourceText) earthquakeSourceText.hidden = !state.phivolcsEarthquakesVisible;
+  const volcanoSourceLegend = document.getElementById("volcanoSourceLegend");
+  if (volcanoSourceLegend) volcanoSourceLegend.hidden = !state.phivolcsMarkersVisible;
+  const volcanoSourceText = document.getElementById("volcanoSourceText");
+  if (volcanoSourceText) volcanoSourceText.hidden = !state.phivolcsMarkersVisible;
+  if (els.faultLineLegend) els.faultLineLegend.hidden = !state.faultLinesVisible;
   document.querySelectorAll("[data-weather-legend]").forEach((legend) => {
     const active = legend.dataset.weatherLegend === state.weatherLayer;
     legend.hidden = !active;
@@ -1419,6 +1410,7 @@ function plotFaultLines() {
 
 function setFaultLinesVisible(visible) {
   state.faultLinesVisible = visible;
+  updateWeatherLayerControls();
   if (!visible) {
     clearFaultLines();
     return;
@@ -4085,8 +4077,8 @@ function clearCanvasFocus() {
 function resetMapSelection() {
   els.searchInput.value = "";
   hideEcSearchSuggestions();
-  els.provinceSelect.value = "";
-  els.ecSelect.value = "";
+  if (els.provinceSelect) els.provinceSelect.value = "";
+  if (els.ecSelect) els.ecSelect.value = "";
 
   state.filters = {
     search: "",
@@ -4354,8 +4346,13 @@ function bindEvents() {
     resizeCanvas
   );
 
-  els.volcanoMarkersToggle?.addEventListener("change", (event) => { state.volcanoMarkersVisible = event.target.checked; plotGdacsVolcanoes(); });
-  els.phivolcsMarkersToggle?.addEventListener("change", (event) => { state.phivolcsMarkersVisible = event.target.checked; plotGdacsVolcanoes(); });
+  if (els.volcanoMarkersToggle) els.volcanoMarkersToggle.checked = state.volcanoMarkersVisible;
+  if (els.phivolcsMarkersToggle) els.phivolcsMarkersToggle.checked = state.phivolcsMarkersVisible;
+  if (els.phivolcsEarthquakesToggle) els.phivolcsEarthquakesToggle.checked = state.phivolcsEarthquakesVisible;
+  if (els.faultLinesToggle) els.faultLinesToggle.checked = state.faultLinesVisible;
+
+  els.volcanoMarkersToggle?.addEventListener("change", (event) => { state.volcanoMarkersVisible = event.target.checked; updateWeatherLayerControls(); plotGdacsVolcanoes(); });
+  els.phivolcsMarkersToggle?.addEventListener("change", (event) => { state.phivolcsMarkersVisible = event.target.checked; updateWeatherLayerControls(); plotGdacsVolcanoes(); });
   els.phivolcsEarthquakesToggle?.addEventListener("change", (event) => { state.phivolcsEarthquakesVisible = event.target.checked; updateWeatherLayerControls(); plotPhivolcsEarthquakes(); });
   els.faultLinesToggle?.addEventListener("change", (event) => setFaultLinesVisible(event.target.checked));
   els.windyToggle?.addEventListener("change", (event) => setWindyVisible(event.target.checked));
@@ -4377,12 +4374,6 @@ function bindEvents() {
   );
 
   els.modeScada?.addEventListener("click", () => setMode("scada"));
-
-  els.tcwsBannerClose?.addEventListener("click", () => {
-    state.tcwsBannerDismissed = true;
-    updateTcwsLiveBanner();
-  });
-
 
   document.querySelectorAll("[data-weather-layer]").forEach((button) => {
     button.addEventListener("click", () => setWeatherLayer(button.dataset.weatherLayer));
@@ -4472,7 +4463,7 @@ function bindEvents() {
     () => {
       showEcSearchBar();
       state.filters.ec = "";
-      els.ecSelect.value = "";
+      if (els.ecSelect) els.ecSelect.value = "";
       state.filters.search =
         els.searchInput.value
           .trim()
@@ -4501,7 +4492,7 @@ function bindEvents() {
     }
   );
 
-  els.provinceSelect.addEventListener(
+  els.provinceSelect?.addEventListener(
     "change",
     () => {
       state.filters.province =
@@ -4511,7 +4502,7 @@ function bindEvents() {
     }
   );
 
-  els.ecSelect.addEventListener(
+  els.ecSelect?.addEventListener(
     "change",
     () => {
       state.filters.ec =

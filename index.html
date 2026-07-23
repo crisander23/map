@@ -6,7 +6,7 @@
     <title>NEA DDCC Map</title>
     <link rel="icon" type="image/png" href="assets/nea.png?v=nea-favicon-1" />
     <link rel="apple-touch-icon" href="assets/nea.png?v=nea-favicon-1" />
-    <link rel="stylesheet" href="styles.css?v=ec-search-3" />
+    <link rel="stylesheet" href="styles.css?v=drrmd-floating-legends-1" />
   </head>
   <body class="sidebar-collapsed" data-theme="dark" data-mode="ec">
     <div id="splashScreen" class="splash-screen" role="status" aria-live="polite">
@@ -78,25 +78,12 @@
               <button id="modeScada" class="mode-button" type="button">SCADA</button>
             </div>
             <p id="weatherStatus" class="mode-status">Weather mode reads TCWS signals from local data.</p>
-            <section id="weatherLayerSwitch" class="weather-layer-switch" aria-label="Weather layer" hidden>
-              <span class="panel-kicker">DRRMD layer</span>
-              <div class="weather-layer-buttons" role="group" aria-label="Weather layer selector">
-                <button type="button" class="weather-layer-button is-active" data-weather-layer="tcws">TCWS</button>
-                <button type="button" class="weather-layer-button" data-weather-layer="flood">Flood</button>
-                <button type="button" class="weather-layer-button" data-weather-layer="temperature">Temp</button>
-                <button type="button" class="weather-layer-button" data-weather-layer="rainfall">Rain</button>
-              </div>
+            <section class="drrmd-sidebar-options" aria-label="DRRMD options">
               <label class="volcano-marker-toggle windy-toggle"><input id="windyToggle" type="checkbox" checked /> <span>Show Windy weather map</span></label>
 
               <label class="volcano-marker-toggle"><input id="phivolcsMarkersToggle" type="checkbox" /> <span>Show active volcanoes</span></label>
-              <label class="volcano-marker-toggle"><input id="phivolcsEarthquakesToggle" type="checkbox" checked /> <span>Show live earthquakes</span></label>
-              <label class="volcano-marker-toggle fault-line-toggle"><input id="faultLinesToggle" type="checkbox" checked /> <span>Show Philippine fault lines</span></label>
-              <div id="volcanoSourceLegend" class="volcano-source-legend"><span><img class="volcano-legend-icon volcano-legend-icon--phivolcs" src="assets/volcano-icon.png?v=volcano-original-3" alt="" />Active volcanoes</span></div>
-              <div id="earthquakeLegend" class="earthquake-legend"><span><i class="earthquake-legend-icon earthquake-legend-icon--latest"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>Latest event</span><span><i class="earthquake-legend-icon earthquake-legend-icon--major"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>M4.0+</span><span><i class="earthquake-legend-icon earthquake-legend-icon--moderate"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>M3.0-3.9</span><span><i class="earthquake-legend-icon earthquake-legend-icon--minor"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>Below M3.0</span></div>
-
-              <small id="volcanoSourceText" class="weather-legend-meta">Source: PHIVOLCS active volcano reference</small>
-              <small id="earthquakeSourceText" class="weather-legend-meta">Source: PHIVOLCS Philippine Seismic Network via HazardHunterPH</small>
-              <small class="weather-legend-meta fault-line-source">Fault lines: DOST-PHIVOLCS Active Fault Map</small>
+              <label class="volcano-marker-toggle"><input id="phivolcsEarthquakesToggle" type="checkbox" /> <span>Show live earthquakes</span></label>
+              <label class="volcano-marker-toggle fault-line-toggle"><input id="faultLinesToggle" type="checkbox" /> <span>Show Philippine fault lines</span></label>
             </section>
           </section>
 
@@ -104,23 +91,10 @@
             <span class="panel-kicker">SCADA level</span>
             <div class="scada-sidebar-legend__items"><span><i class="scada-chip scada-chip--level-5"></i>Level 5</span><span><i class="scada-chip scada-chip--level-4"></i>Level 4</span></div>
           </section>
-
-          <section class="controls" aria-label="Filters">
-            <label>
-              Province
-              <select id="provinceSelect">
-                <option value="">All provinces</option>
-              </select>
-            </label>
-
-            <label>
-              Electric cooperative
-              <select id="ecSelect">
-                <option value="">All EC values</option>
-              </select>
-            </label>
-          </section>
-
+          <!-- The legacy sidebar legend markup below is retained as a comment for compatibility; legends now float over the map. -->
+          <!--
+          <section id="sidebarSignalLegend" class="signal-legend hud-corners" aria-label="Weather layer legend" hidden></section>
+        <aside id="drrmdLegendStack" class="drrmd-legend-stack" aria-label="DRRMD map legends">
           <section id="signalLegend" class="signal-legend hud-corners" aria-label="Weather layer legend" hidden>
             <span id="weatherLegendTitle" class="panel-kicker">TCWS Legend</span>
             <div data-weather-legend="tcws">
@@ -133,6 +107,21 @@
               <small id="tcwsTimestamp" class="weather-legend-meta">Bulletin issued: --</small>
               <small id="tcwsCadence" class="weather-legend-meta">PAGASA updates every 6 hours</small>
             </div>
+          <section id="volcanoSourceLegend" class="floating-layer-legend" aria-label="Active volcano legend" hidden>
+            <span class="panel-kicker">Active volcanoes</span>
+            <div class="volcano-source-legend"><span><img class="volcano-legend-icon volcano-legend-icon--phivolcs" src="assets/volcano-icon.png?v=volcano-original-3" alt="" />PHIVOLCS reference</span></div>
+            <small id="volcanoSourceText" class="weather-legend-meta">Source: PHIVOLCS active volcano reference</small>
+          </section>
+          <section id="earthquakeLegend" class="floating-layer-legend earthquake-legend-panel" aria-label="Earthquake legend" hidden>
+            <span class="panel-kicker">Live earthquakes</span>
+            <div class="earthquake-legend"><span><i class="earthquake-legend-icon earthquake-legend-icon--latest"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>Latest event</span><span><i class="earthquake-legend-icon earthquake-legend-icon--major"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>M4.0+</span><span><i class="earthquake-legend-icon earthquake-legend-icon--moderate"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>M3.0-3.9</span><span><i class="earthquake-legend-icon earthquake-legend-icon--minor"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>Below M3.0</span></div>
+            <small id="earthquakeSourceText" class="weather-legend-meta">Source: PHIVOLCS Philippine Seismic Network via HazardHunterPH</small>
+          </section>
+          <section id="faultLineLegend" class="floating-layer-legend" aria-label="Philippine fault line legend" hidden>
+            <span class="panel-kicker">Philippine fault lines</span>
+            <small class="weather-legend-meta fault-line-source">Source: DOST-PHIVOLCS Active Fault Map</small>
+          </section>
+        </aside>
             <div data-weather-legend="flood" hidden>
               <div class="legend-row"><span class="weather-chip weather-chip--flood-moderate"></span>Moderate</div>
               <div class="legend-row"><span class="weather-chip weather-chip--flood-severe"></span>Severe</div>
@@ -159,15 +148,29 @@
         </div>
       </aside>
 
+          -->
+          </div>
+        </aside>
+
       <section class="map-panel" aria-label="Interactive coverage map">
         <div class="map-toolbar hud-corners">
-          <div id="ecSearchShell" class="map-toolbar__search-shell">
-            <label class="map-toolbar__search" for="searchInput">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3" /><path d="m16 16 4.5 4.5" /></svg>
-              <span class="sr-only">Search electric cooperative or province</span>
-              <input id="searchInput" class="map-toolbar__search-input" type="search" placeholder="Search electric cooperative" autocomplete="off" aria-autocomplete="list" aria-controls="ecSearchSuggestions" aria-expanded="false" />
-            </label>
-            <div id="ecSearchSuggestions" class="ec-search-suggestions" role="listbox" aria-label="Electric cooperative suggestions" hidden></div>
+          <div class="drrmd-top-controls">
+            <div id="ecSearchShell" class="map-toolbar__search-shell">
+              <label class="map-toolbar__search" for="searchInput">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3" /><path d="m16 16 4.5 4.5" /></svg>
+                <span class="sr-only">Search electric cooperative or province</span>
+                <input id="searchInput" class="map-toolbar__search-input" type="search" placeholder="Search electric cooperative" autocomplete="off" aria-autocomplete="list" aria-controls="ecSearchSuggestions" aria-expanded="false" />
+              </label>
+              <div id="ecSearchSuggestions" class="ec-search-suggestions" role="listbox" aria-label="Electric cooperative suggestions" hidden></div>
+            </div>
+            <section id="weatherLayerSwitch" class="weather-layer-switch" aria-label="DRRMD layer" hidden>
+              <div class="weather-layer-buttons" role="group" aria-label="Weather layer selector">
+                <button type="button" class="weather-layer-button is-active" data-weather-layer="tcws">TCWS</button>
+                <button type="button" class="weather-layer-button" data-weather-layer="flood">Flood</button>
+                <button type="button" class="weather-layer-button" data-weather-layer="temperature">Temp</button>
+                <button type="button" class="weather-layer-button" data-weather-layer="rainfall">Rain</button>
+              </div>
+            </section>
           </div>
           <div class="sr-only">
             <strong id="visibleCount">Loading EC polygons...</strong>
@@ -193,15 +196,55 @@
             </button>
           </div>
         </div>
-        <aside id="tcwsLiveBanner" class="tcws-live-banner hud-corners" aria-live="polite" aria-label="Current PAGASA TCWS bulletin" hidden>
-          <div class="tcws-live-banner__topline">
-            <span class="tcws-live-banner__live"><i aria-hidden="true"></i> PAGASA · LIVE TCWS</span>
-            <span id="tcwsBannerFetched">Waiting for refresh</span>
-            <button id="tcwsBannerClose" class="tcws-live-banner__close" type="button" aria-label="Close TCWS banner" title="Close banner">×</button>
-          </div>
-          <strong id="tcwsBannerStorm">Current bulletin</strong>
-          <span id="tcwsBannerBulletin">Tropical Cyclone Bulletin</span>
-          <small id="tcwsBannerIssued">Issued time unavailable</small>
+        <aside id="drrmdLegendStack" class="drrmd-legend-stack" aria-label="DRRMD map legends">
+          <section id="signalLegend" class="signal-legend hud-corners" aria-label="Weather layer legend" hidden>
+            <span id="weatherLegendTitle" class="panel-kicker">TCWS Legend</span>
+            <div data-weather-legend="tcws">
+              <div class="legend-row"><span class="signal-chip signal-0"></span>No signal</div>
+              <div class="legend-row"><span class="signal-chip signal-1"></span>Signal 1</div>
+              <div class="legend-row"><span class="signal-chip signal-2"></span>Signal 2</div>
+              <div class="legend-row"><span class="signal-chip signal-3"></span>Signal 3</div>
+              <div class="legend-row"><span class="signal-chip signal-4"></span>Signal 4</div>
+              <div class="legend-row"><span class="signal-chip signal-5"></span>Signal 5</div>
+              <small id="tcwsTimestamp" class="weather-legend-meta">Bulletin issued: --</small>
+              <small id="tcwsCadence" class="weather-legend-meta">PAGASA updates every 6 hours</small>
+            </div>
+            <div data-weather-legend="flood" hidden>
+              <div class="legend-row"><span class="weather-chip weather-chip--flood-moderate"></span>Moderate</div>
+              <div class="legend-row"><span class="weather-chip weather-chip--flood-severe"></span>Severe</div>
+              <div class="legend-row"><span class="weather-chip weather-chip--flood-extreme"></span>Extreme</div>
+              <div class="legend-row"><span class="weather-chip weather-chip--clear"></span>No active advisory</div>
+            </div>
+            <div data-weather-legend="rainfall" hidden>
+              <div class="rainfall-gradient-legend">
+                <div class="rainfall-gradient-bar" aria-hidden="true"></div>
+                <div class="rainfall-gradient-labels"><span>Dry</span><span>Heavy</span></div>
+              </div>
+              <small class="weather-legend-meta">Current precipitation &middot; Open-Meteo</small>
+              <div class="rainfall-legend-scale"><span>0 mm</span><span>1</span><span>5</span><span>15+</span></div>
+            </div>
+            <div data-weather-legend="temperature" hidden>
+              <div class="temperature-gradient-legend">
+                <div class="temperature-gradient-bar" aria-hidden="true"></div>
+                <div class="temperature-gradient-labels"><span>Cooler</span><span>Hotter</span></div>
+                <small>Current temperature &middot; Open-Meteo</small>
+              </div>
+            </div>
+          </section>
+          <section id="volcanoSourceLegend" class="floating-layer-legend" aria-label="Active volcano legend" hidden>
+            <span class="panel-kicker">Active volcanoes</span>
+            <div class="volcano-source-legend"><span><img class="volcano-legend-icon volcano-legend-icon--phivolcs" src="assets/volcano-icon.png?v=volcano-original-3" alt="" />PHIVOLCS reference</span></div>
+            <small id="volcanoSourceText" class="weather-legend-meta">Source: PHIVOLCS active volcano reference</small>
+          </section>
+          <section id="earthquakeLegend" class="floating-layer-legend earthquake-legend-panel" aria-label="Earthquake legend" hidden>
+            <span class="panel-kicker">Live earthquakes</span>
+            <div class="earthquake-legend"><span><i class="earthquake-legend-icon earthquake-legend-icon--latest"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>Latest event</span><span><i class="earthquake-legend-icon earthquake-legend-icon--major"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>M4.0+</span><span><i class="earthquake-legend-icon earthquake-legend-icon--moderate"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>M3.0-3.9</span><span><i class="earthquake-legend-icon earthquake-legend-icon--minor"><img src="assets/earthquake-icon.png?v=earthquake-sidebar-8" alt="" /></i>Below M3.0</span></div>
+            <small id="earthquakeSourceText" class="weather-legend-meta">Source: PHIVOLCS Philippine Seismic Network via HazardHunterPH</small>
+          </section>
+          <section id="faultLineLegend" class="floating-layer-legend" aria-label="Philippine fault line legend" hidden>
+            <span class="panel-kicker">Philippine fault lines</span>
+            <small class="weather-legend-meta fault-line-source">Source: DOST-PHIVOLCS Active Fault Map</small>
+          </section>
         </aside>
         <div id="windy" aria-label="Windy weather forecast map" hidden></div>
         <canvas id="mapCanvas"></canvas>
